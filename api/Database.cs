@@ -14,7 +14,6 @@ public sealed class Db
 
     public bool Ready { get; private set; }
     public string? Error { get; private set; }
-    public string? Detail { get; private set; }
 
     public Db(string host, uint port, string user, string password, string database)
     {
@@ -86,8 +85,7 @@ public sealed class Db
             var parts = new List<string>();
             for (Exception? e = ex; e != null; e = e.InnerException)
                 parts.Add($"{e.GetType().Name}: {e.Message}");
-            Detail = string.Join(" | ", parts);
-            Console.Error.WriteLine($"[db] init failed: {Detail}");
+            Console.Error.WriteLine($"[db] init failed: {string.Join(" | ", parts)}");
         }
     }
 

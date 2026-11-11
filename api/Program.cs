@@ -46,52 +46,7 @@ IResult DbDown() => Results.Json(new { error = "Database not connected. Put your
 
 app.MapGet("/", () => Results.File(indexPath, "text/html; charset=utf-8"));
 app.MapGet("/index.html", () => Results.File(indexPath, "text/html; charset=utf-8"));
-app.MapGet("/api/health", async () =>
-{
-    var envKeys = Environment.GetEnvironmentVariables().Keys.Cast<object>()
-        .Select(k => k.ToString() ?? "")
-        .Where(k => k.Contains("DATABASE", StringComparison.OrdinalIgnoreCase)
-                 || k.StartsWith("DB_", StringComparison.OrdinalIgnoreCase)
-                 || k.Contains("MYSQL", StringComparison.OrdinalIgnoreCase))
-        .OrderBy(k => k)
-        .ToArray();
-
-    string? probe = null;
-    if (!db.Ready)
-    {
-        try
-        {
-            var addresses = await System.Net.Dns.GetHostAddressesAsync(dbHost);
-            using var tcp = new System.Net.Sockets.TcpClient();
-            var connect = tcp.ConnectAsync(dbHost, (int)dbPort);
-            var finished = await Task.WhenAny(connect, Task.Delay(5000));
-            probe = finished == connect && tcp.Connected
-                ? $"dns ok ({addresses.Length} address), tcp {dbHost}:{dbPort} reachable"
-                : $"dns ok ({addresses.Length} address), tcp {dbHost}:{dbPort} timed out";
-        }
-        catch (Exception ex)
-        {
-            probe = $"dns lookup failed for {dbHost}: {ex.GetType().Name}: {ex.Message}";
-        }
-    }
-
-    return Results.Ok(new
-    {
-        ok = true,
-        database = db.Ready,
-        error = db.Error,
-        detail = db.Detail,
-        probe,
-        target = new
-        {
-            hostSuffix = dbHost.Length > 3 ? dbHost[^Math.Min(dbHost.Length, 28)..] : dbHost,
-            port = dbPort,
-            userSuffix = dbUser.Length > 6 ? dbUser[^6..] : dbUser,
-            name = dbName,
-            envKeys,
-        },
-    });
-});
+app.MapGet("/api/health", () => Results.Ok(new { ok = true, database = db.Ready, error = db.Error }));
 
 /* ---------- Auth ---------- */
 
