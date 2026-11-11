@@ -8,12 +8,25 @@ var listenPort = Environment.GetEnvironmentVariable("PORT");
 builder.WebHost.UseUrls($"http://{(listenPort is null ? "localhost" : "0.0.0.0")}:{listenPort ?? "3000"}");
 
 var cfg = builder.Configuration.GetSection("Database");
-var db = new Db(
-    cfg["Host"] ?? "localhost",
-    uint.TryParse(cfg["Port"], out var port) ? port : 3306,
-    cfg["User"] ?? "root",
-    cfg["Password"] ?? "",
-    cfg["Name"] ?? "agritrack");
+
+string? Setting(string name)
+{
+    var set = cfg[name];
+    if (!string.IsNullOrWhiteSpace(set)) return set;
+    foreach (var key in new[] { $"Database__{name}", $"Database_{name}", $"DB_{name.ToUpperInvariant()}", $"MYSQL_{name.ToUpperInvariant()}" })
+    {
+        var value = Environment.GetEnvironmentVariable(key);
+        if (!string.IsNullOrWhiteSpace(value)) return value;
+    }
+    return null;
+}
+
+var dbHost = Setting("Host") ?? "localhost";
+var dbPort = uint.TryParse(Setting("Port"), out var parsedPort) ? parsedPort : 3306;
+var dbUser = Setting("User") ?? "root";
+var dbPass = Setting("Password") ?? "";
+var dbName = Setting("Name") ?? "agritrack";
+var db = new Db(dbHost, dbPort, dbUser, dbPass, dbName);
 var sessions = new SessionStore();
 
 await db.InitAsync();
@@ -35,8 +48,13 @@ app.MapGet("/", () => Results.File(indexPath, "text/html; charset=utf-8"));
 app.MapGet("/index.html", () => Results.File(indexPath, "text/html; charset=utf-8"));
 app.MapGet("/api/health", () =>
 {
-    var host = cfg["Host"] ?? "";
-    var user = cfg["User"] ?? "";
+    var envKeys = Environment.GetEnvironmentVariables().Keys.Cast<object>()
+        .Select(k => k.ToString() ?? "")
+        .Where(k => k.Contains("DATABASE", StringComparison.OrdinalIgnoreCase)
+                 || k.StartsWith("DB_", StringComparison.OrdinalIgnoreCase)
+                 || k.Contains("MYSQL", StringComparison.OrdinalIgnoreCase))
+        .OrderBy(k => k)
+        .ToArray();
     return Results.Ok(new
     {
         ok = true,
@@ -45,12 +63,11 @@ app.MapGet("/api/health", () =>
         detail = db.Detail,
         target = new
         {
-            hostSet = host.Length > 0,
-            hostSuffix = host.Length > 3 ? host[^Math.Min(host.Length, 28)..] : host,
-            port = cfg["Port"],
-            userSet = user.Length > 0,
-            userSuffix = user.Length > 6 ? user[^6..] : user,
-            name = cfg["Name"],
+            hostSuffix = dbHost.Length > 3 ? dbHost[^Math.Min(dbHost.Length, 28)..] : dbHost,
+            port = dbPort,
+            userSuffix = dbUser.Length > 6 ? dbUser[^6..] : dbUser,
+            name = dbName,
+            envKeys,
         },
     });
 });
