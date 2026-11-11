@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: agritrack
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: Database__Host
+        sync: false
+      - key: Database__Port
+        sync: false
+      - key: Database__User
+        sync: false
+      - key: Database__Password
+        sync: false
+      - key: Database__Name
+        sync: false

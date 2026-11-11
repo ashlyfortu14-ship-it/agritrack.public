@@ -1,0 +1,2123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="AgriTrack – track farm inventory, manage expenses, and sell crops directly to buyers.">
+  <meta name="theme-color" content="#0f5a40">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='1.5' y='1.5' width='45' height='45' rx='12.5' fill='%230f5a40'/%3E%3Cpath d='M11.5 35.5c7.5 2.4 17.5 2.4 25 0' fill='none' stroke='%237fd6a4' stroke-opacity='.5' stroke-width='2.2' stroke-linecap='round'/%3E%3Cpath d='M24 36V20' stroke='%23f1f8f4' stroke-width='2.8' stroke-linecap='round'/%3E%3Cpath d='M23 24.5c-6.6 0-10.8-4.2-11.2-10.4 6.2-.6 11 3.8 11.2 10.4z' fill='%23e4f2ea'/%3E%3Cpath d='M25 21.5c.2-6.2 4.4-10.6 10.8-10.6.4 6-4 10.4-10.8 10.6z' fill='%237fd6a4'/%3E%3C/svg%3E">
+  <title>AgriTrack – Grow · Manage · Sell</title>
+  <style>
+/* ===== AgriTrack styles ===== */
+:root {
+  --green-900: #0b4a34;
+  --green-800: #0f5a40;
+  --green-700: #146b4a;
+  --green-600: #1a7f58;
+  --green-100: #e4f2ea;
+  --green-50: #f1f8f4;
+  --orange: #f59e0b;
+  --orange-bg: #fff3dc;
+  --purple: #7c5cdb;
+  --purple-bg: #ece7fb;
+  --blue: #2d9cdb;
+  --blue-bg: #def0fb;
+  --red: #e5484d;
+  --ink: #17261f;
+  --muted: #6b7a72;
+  --line: #e6ece8;
+  --bg: #f3f6f4;
+  --card: #ffffff;
+  --radius: 14px;
+  --shadow: 0 2px 12px rgba(16, 60, 40, .07);
+  --sidebar-w: 232px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.5;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; }
+svg { width: 20px; height: 20px; flex: none; }
+a { color: var(--green-700); text-decoration: none; font-weight: 500; }
+a:hover { text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--green-600); outline-offset: 2px; }
+
+/* ===== Buttons ===== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 18px; border-radius: 10px; font-weight: 600; font-size: 13px;
+  transition: background .15s, box-shadow .15s;
+}
+.btn-ic { width: 14px; height: 14px; }
+.btn-primary { background: var(--green-700); color: #fff; }
+.btn-primary:hover { background: var(--green-800); }
+.btn-outline { background: #fff; border: 1px solid var(--line); }
+.btn-outline:hover { background: var(--green-50); }
+.btn-ghost { background: #fff; border: 1px solid var(--line); color: var(--muted); }
+.btn-danger { background: #fdecec; color: var(--red); }
+.btn-danger:hover { background: #fbdada; }
+.btn-block { width: 100%; padding: 12px; }
+.icon-btn {
+  width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
+  color: var(--ink); position: relative;
+}
+.icon-btn:hover { background: var(--green-50); }
+
+/* ===== Auth ===== */
+.auth {
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.55) 0%, rgba(255,247,214,.35) 45%, rgba(46,110,50,.5) 100%),
+    radial-gradient(1200px 500px at 20% 105%, #4d8a2f 0%, transparent 60%),
+    radial-gradient(900px 400px at 90% 110%, #6aa13a 0%, transparent 60%),
+    linear-gradient(180deg, #e9efd2, #c9dd9c 60%, #7fae4b);
+  padding: 36px 24px;
+  gap: 26px;
+}
+.auth-hero {
+  padding: 0; align-self: center; width: 100%; max-width: 620px;
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px;
+}
+.auth-brand { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.auth-brand h1 { font-size: 46px; font-weight: 700; color: var(--green-800); line-height: 1; letter-spacing: -1px; }
+.tagline { font-size: 17px; font-weight: 500; margin-top: 4px; }
+.auth-copy h2 { font-size: 24px; line-height: 1.25; color: #5a3d12; margin-bottom: 6px; }
+.auth-copy p { color: #3f4a36; max-width: 470px; margin: 0 auto; }
+
+.auth-card {
+  width: 100%; max-width: 560px; margin: 0 auto;
+  background: #fff; border-radius: 24px; padding: 38px 38px 30px;
+  box-shadow: 0 24px 60px rgba(20, 60, 30, .28);
+}
+.tabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--line); margin-bottom: 26px; }
+.tab { padding: 12px 0; font-size: 15px; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab.active { color: var(--green-700); border-color: var(--green-700); }
+.auth-form { display: flex; flex-direction: column; gap: 16px; }
+.input-icon {
+  display: flex; align-items: center; gap: 12px; border: 1px solid var(--line);
+  border-radius: 12px; padding: 0 16px; height: 54px; background: #fff;
+}
+.input-icon:focus-within { border-color: var(--green-600); box-shadow: 0 0 0 3px rgba(26,127,88,.12); }
+.input-icon svg { width: 18px; height: 18px; color: var(--muted); }
+.input-icon input, .input-icon select { flex: 1; border: 0; outline: 0; background: none; min-width: 0; font-size: 14.5px; padding: 0; }
+.eye { display: grid; place-items: center; }
+.forgot { align-self: flex-end; font-size: 13px; margin-top: -6px; }
+.form-error { color: var(--red); font-size: 12.5px; }
+.switch { text-align: center; font-size: 13px; }
+.auth-form .btn-block { padding: 15px; font-size: 15px; margin-top: 2px; }
+
+/* ===== App shell ===== */
+.app { display: grid; grid-template-columns: var(--sidebar-w) 1fr; min-height: 100vh; }
+.sidebar {
+  background: linear-gradient(180deg, var(--green-800), var(--green-900));
+  color: #e7f3ec; padding: 22px 14px; display: flex; flex-direction: column;
+  position: sticky; top: 0; height: 100vh;
+}
+.side-brand { display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 600; padding: 0 8px 22px; color: #fff; }
+.side-user { display: none; align-items: center; gap: 10px; padding: 8px; margin-bottom: 14px; }
+.side-user small, .user-chip small { display: block; font-size: 11px; opacity: .7; line-height: 1.1; }
+.side-nav { display: flex; flex-direction: column; gap: 4px; }
+.nav-item {
+  display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 10px;
+  color: #d3e8dc; font-weight: 500; text-align: left; width: 100%;
+}
+.nav-item svg { width: 18px; height: 18px; }
+.nav-item:hover { background: rgba(255,255,255,.08); }
+.nav-item.active { background: #1f8a5e; color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+.side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 4px; }
+
+.main { min-width: 0; padding: 0 28px 40px; }
+.topbar { display: flex; align-items: center; gap: 12px; padding: 18px 0; }
+.topbar h2 { font-size: 21px; font-weight: 600; flex: 1; }
+.menu-btn { display: none; }
+.top-right { display: flex; align-items: center; gap: 14px; }
+.bell .dot { position: absolute; top: 8px; right: 9px; width: 8px; height: 8px; border-radius: 50%; background: var(--red); border: 2px solid var(--bg); }
+.user-chip { display: flex; align-items: center; gap: 10px; }
+.user-chip b { font-size: 12.5px; font-weight: 600; display: block; line-height: 1.2; }
+.user-chip small { color: var(--muted); opacity: 1; }
+.avatar {
+  width: 36px; height: 36px; border-radius: 50%; background: #cfe4d8; color: var(--green-800);
+  display: grid; place-items: center; font-weight: 600; font-size: 13px; flex: none;
+}
+.side-user .avatar { background: #cfe4d8; }
+
+.view { animation: none; }
+.hello { font-size: 20px; font-weight: 600; }
+.sub { color: var(--muted); font-size: 12.5px; margin-bottom: 18px; }
+
+/* ===== Panels, stats ===== */
+.panel { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }
+.panel h4 { font-size: 14px; font-weight: 600; margin-bottom: 14px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+.stat { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; display: flex; align-items: center; gap: 14px; }
+.stat small { color: var(--muted); font-size: 11.5px; display: block; }
+.stat b { font-size: 18px; font-weight: 600; }
+.stat-ic { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+.stat-ic svg { width: 22px; height: 22px; }
+.stat-ic.green { background: var(--green-100); color: var(--green-600); }
+.stat-ic.orange { background: var(--orange-bg); color: var(--orange); }
+.stat-ic.purple { background: var(--purple-bg); color: var(--purple); }
+.stat-ic.blue { background: var(--blue-bg); color: var(--blue); }
+
+.dash-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+/* Bar chart */
+.chart { display: grid; grid-template-columns: 38px 1fr; grid-template-rows: 190px auto; column-gap: 8px; }
+.y-axis { display: flex; flex-direction: column-reverse; justify-content: space-between; font-size: 10.5px; color: var(--muted); text-align: right; }
+.plot {
+  position: relative; display: flex; align-items: flex-end; justify-content: space-around;
+  border-left: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  background: repeating-linear-gradient(to top, transparent 0, transparent calc(25% - 1px), var(--line) calc(25% - 1px), var(--line) 25%);
+}
+.bar-col { flex: 0 0 11%; height: 100%; display: flex; align-items: flex-end; }
+.bar { width: 100%; background: #2f9e66; border-radius: 3px 3px 0 0; min-height: 2px; transition: height .5s ease; position: relative; }
+.bar:hover { background: var(--green-700); }
+.bar[data-tip]:hover::after {
+  content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translate(-50%, -4px);
+  background: var(--ink); color: #fff; font-size: 11px; padding: 3px 8px; border-radius: 6px; white-space: nowrap;
+}
+.x-axis { grid-column: 2; display: flex; justify-content: space-around; font-size: 10.5px; color: var(--muted); padding-top: 6px; }
+.x-axis span { flex: 0 0 11%; text-align: center; }
+
+/* Activities */
+.activities { list-style: none; display: flex; flex-direction: column; }
+.activities li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.activities li:last-child { border-bottom: 0; }
+.act-ic { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+.act-ic svg { width: 15px; height: 15px; }
+.act-ic.green { background: var(--green-100); color: var(--green-600); }
+.act-ic.orange { background: var(--orange-bg); color: var(--orange); }
+.act-ic.purple { background: var(--purple-bg); color: var(--purple); }
+.act-text { flex: 1; font-size: 12px; line-height: 1.35; min-width: 0; }
+.act-text small { color: var(--muted); font-size: 10.5px; display: block; }
+.empty { color: var(--muted); text-align: center; padding: 28px 0; font-size: 13px; }
+
+/* ===== Toolbar, search, filters ===== */
+.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.toolbar h3 { font-size: 18px; font-weight: 600; margin-right: auto; }
+.search {
+  display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line);
+  border-radius: 10px; padding: 0 12px; height: 40px; min-width: 220px;
+}
+.search svg { width: 15px; height: 15px; color: var(--muted); }
+.search input { border: 0; outline: 0; background: none; flex: 1; min-width: 0; font-size: 13px; }
+.search:focus-within { border-color: var(--green-600); }
+.filters { display: flex; gap: 14px; align-items: flex-end; margin-bottom: 14px; flex-wrap: wrap; }
+.filters label:not(.search) { display: flex; flex-direction: column; font-size: 11.5px; color: var(--muted); gap: 4px; }
+.filters .grow { flex: 1; min-width: 180px; }
+select, .form-grid input, .form-grid textarea {
+  border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; background: #fff; font-size: 13px; outline: 0; width: 100%;
+}
+.filters select { min-width: 170px; }
+select:focus, .form-grid input:focus, .form-grid textarea:focus { border-color: var(--green-600); box-shadow: 0 0 0 3px rgba(26,127,88,.12); }
+
+/* ===== Tables ===== */
+.table-wrap { padding: 0; overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; min-width: 640px; }
+.table.inv-table { min-width: 940px; }
+.table.exp-table { min-width: 760px; }
+.table th { text-align: left; font-size: 11.5px; color: var(--muted); font-weight: 600; padding: 12px 16px; background: #f7faf8; border-bottom: 1px solid var(--line); }
+.table td { padding: 12px 16px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+.table tr:last-child td { border-bottom: 0; }
+.table .r { text-align: right; }
+.thumb { width: 40px; height: 40px; border-radius: 8px; display: grid; place-items: center; color: var(--green-700); background: var(--green-100); }
+.thumb svg { width: 20px; height: 20px; }
+.thumb.Seeds { background: #e9f1c9; color: #7a8c23; } .thumb.Seedlings { background: #dcefd0; color: #358a44; }
+.thumb.Material { background: #eadfcf; color: #9a6a2f; } .thumb.Equipment { background: #dce6f3; color: #3b6ea8; } .thumb.Produce { background: #fde1dc; color: #c0483c; }
+.row-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.row-actions button { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--muted); }
+.row-actions svg { width: 15px; height: 15px; }
+.row-actions button:hover { background: var(--green-50); color: var(--green-700); }
+.row-actions .del { color: var(--red); }
+.row-actions .del:hover { background: #fdecec; color: var(--red); }
+.table-foot { padding: 12px 16px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
+.table-foot.total { text-align: right; color: var(--ink); font-size: 13px; }
+
+/* ===== Marketplace ===== */
+.chips { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.chip { padding: 7px 18px; border-radius: 8px; background: #fff; border: 1px solid var(--line); font-size: 12.5px; font-weight: 500; color: var(--muted); }
+.chip.active { background: var(--green-700); border-color: var(--green-700); color: #fff; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+.card { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column; }
+.card-img { height: 130px; display: grid; place-items: center; color: var(--green-700); background-size: cover; background-position: center; }
+.card-img svg { width: 58px; height: 58px; }
+.card-img.Vegetables { background-color: #fbe0d8; color: #3f8f3f; } .card-img.Fruits { background-color: #fdf0c4; color: #c2410c; }
+.card-img.Grains { background-color: #efe6d2; color: #a16207; } .card-img.Others { background-color: #e1eedf; color: #2f7d5d; }
+.card-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.card-body b { font-size: 13.5px; font-weight: 600; }
+.price-tag { font-weight: 600; font-size: 13px; }
+.loc { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
+.loc svg { width: 12px; height: 12px; }
+.qty-left { font-size: 11px; color: var(--muted); }
+.card-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+.badge { font-size: 11px; font-weight: 600; color: var(--green-700); background: var(--green-50); border: 1px solid #b7dcc6; border-radius: 99px; padding: 1px 12px; }
+.badge.sold { color: var(--muted); background: #f1f1f1; border-color: #ddd; }
+.card-foot .link { font-size: 11px; color: var(--red); font-weight: 500; }
+.card-foot .link:hover { text-decoration: underline; }
+
+/* ===== Listing form ===== */
+.listing-panel { max-width: 920px; }
+.listing-head { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
+.listing-head h3 { font-size: 17px; font-weight: 600; }
+.listing-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 28px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-grid label, .form-grid .lbl { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 500; }
+.form-grid .lbl { margin-bottom: 5px; }
+.form-grid .full { grid-column: 1 / -1; }
+.form-grid h3 { font-size: 17px; font-weight: 600; }
+.price-wrap { position: relative; display: block; }
+.price-wrap input { padding-right: 32px; }
+.price-wrap i { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-style: normal; color: var(--muted); font-size: 13px; }
+.dropzone {
+  border: 1.5px dashed #c7d6cd; border-radius: 12px; min-height: 96px; display: flex !important; flex-direction: row !important;
+  align-items: center; justify-content: center; gap: 10px; color: var(--muted); cursor: pointer; text-align: center; padding: 14px;
+}
+.dropzone:hover, .dropzone.over { background: var(--green-50); border-color: var(--green-600); }
+.dropzone svg { width: 26px; height: 26px; }
+.form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+.listing-side { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 12px; }
+.preview { width: 100%; aspect-ratio: 4 / 3; border-radius: 14px; background: #fbe0d8 center / cover no-repeat; display: grid; place-items: center; color: var(--green-700); }
+.preview svg { width: 84px; height: 84px; }
+.leaf-ic { color: var(--green-600); width: 24px; height: 24px; }
+.listing-side p { font-size: 12.5px; font-weight: 600; }
+
+/* ===== Reports, settings ===== */
+.bars { display: flex; flex-direction: column; gap: 12px; }
+.hbar-row { display: grid; grid-template-columns: 96px 1fr 76px; align-items: center; gap: 10px; font-size: 12px; }
+.hbar { height: 10px; background: var(--green-50); border-radius: 99px; overflow: hidden; }
+.hbar i { display: block; height: 100%; background: #2f9e66; border-radius: 99px; }
+.hbar-row span:last-child { text-align: right; font-weight: 600; }
+.summary dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+.summary dt { font-size: 11.5px; color: var(--muted); }
+.summary dd { font-size: 18px; font-weight: 600; }
+.settings { max-width: 560px; display: flex; flex-direction: column; gap: 18px; }
+.settings hr { border: 0; border-top: 1px solid var(--line); }
+.danger { display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+.danger small { display: block; color: var(--muted); font-size: 12px; }
+
+/* ===== Modal, toast ===== */
+.modal { border: 0; border-radius: 18px; padding: 24px; width: min(460px, calc(100vw - 32px)); box-shadow: 0 24px 60px rgba(0,0,0,.28); margin: auto; }
+.modal::backdrop { background: rgba(10, 40, 28, .45); }
+.toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px); background: var(--ink); color: #fff;
+  padding: 10px 18px; border-radius: 10px; font-size: 13px; opacity: 0; pointer-events: none; transition: .25s; z-index: 50;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ===== Interactivity additions ===== */
+.stat[data-view] { cursor: pointer; transition: transform .15s; }
+.stat[data-view]:hover { transform: translateY(-2px); }
+.bar { cursor: pointer; }
+.activities li[data-go] { cursor: pointer; border-radius: 8px; }
+.activities li[data-go]:hover { background: var(--green-50); }
+th[data-sort] { cursor: pointer; user-select: none; white-space: nowrap; }
+th[data-sort]:hover { color: var(--ink); }
+th.sorted-asc::after { content: " ▲"; font-size: 9px; color: var(--green-700); }
+th.sorted-desc::after { content: " ▼"; font-size: 9px; color: var(--green-700); }
+.stepper { display: inline-flex; align-items: center; gap: 6px; }
+.stepper button { width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--line); line-height: 1; color: var(--green-700); font-weight: 600; }
+.stepper button:hover { background: var(--green-50); }
+.stepper b { min-width: 28px; text-align: center; }
+.top-right { position: relative; }
+.notif { position: absolute; top: 46px; right: 0; width: 320px; max-width: calc(100vw - 32px); background: #fff; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.18); z-index: 25; overflow: hidden; }
+.notif-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.notif-head button { font-size: 11.5px; color: var(--green-700); font-weight: 600; }
+.notif ul { list-style: none; max-height: 340px; overflow: auto; }
+.notif li { padding: 10px 16px; font-size: 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.notif li:hover { background: var(--green-50); }
+.notif li.unread { background: #f3faf6; box-shadow: inset 3px 0 0 var(--green-600); }
+.notif small { display: block; color: var(--muted); font-size: 10.5px; }
+.toast.has-action { pointer-events: auto; }
+.toast-undo { color: #7fd6a4; font-weight: 600; margin-left: 10px; text-decoration: underline; }
+.card { cursor: pointer; transition: box-shadow .15s; }
+.card:hover { box-shadow: 0 6px 22px rgba(16,60,40,.15); }
+#listing-modal .card-img { height: 170px; border-radius: 12px; margin-bottom: 14px; }
+.lm-meta { font-weight: 600; margin: 2px 0 6px; }
+.lm-desc { margin: 10px 0; color: var(--muted); font-size: 13px; }
+.lm-order { display: flex; align-items: flex-end; gap: 10px; background: var(--green-50); padding: 12px; border-radius: 12px; margin: 12px 0; }
+.lm-order label { flex: 1; display: flex; flex-direction: column; font-size: 11.5px; gap: 4px; }
+.lm-order input { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: #fff; outline: 0; }
+.lm-seller { font-size: 12px; color: var(--green-700); font-weight: 600; }
+#listing-modal .card-img svg { width: 72px; height: 72px; }
+
+/* ===== Field, summary & role additions ===== */
+.cell-sub { display: block; color: var(--muted); font-size: 10.5px; line-height: 1.3; }
+.seller { font-size: 11px; color: var(--green-700); font-weight: 600; }
+.modal-note { background: var(--green-50); border-radius: 10px; padding: 9px 12px; font-size: 12px; color: var(--muted); }
+.modal-note b { color: var(--ink); }
+.form-grid .check { flex-direction: row; align-items: center; gap: 8px; font-weight: 500; }
+.form-grid .check input { width: auto; padding: 0; border: 0; border-radius: 0; background: none; accent-color: var(--green-700); }
+.settings-role { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--muted); }
+.settings-role b { color: var(--green-700); font-size: 12.5px; }
+.bottom-nav.cols-1 { grid-template-columns: 1fr; }
+
+/* ===== Bottom nav & scrim (mobile) ===== */
+.bottom-nav { display: none; }
+.scrim { display: none; }
+
+@media (max-width: 1080px) {
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .dash-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 860px) {
+  .auth { padding: 24px 16px; gap: 20px; }
+  .auth-hero { padding: 0; gap: 10px; }
+  .auth-copy { display: none; }
+  .auth-brand h1 { font-size: 34px; }
+
+  .app { grid-template-columns: 1fr; }
+  .sidebar {
+    position: fixed; z-index: 40; left: 0; top: 0; width: 260px; transform: translateX(-100%); transition: transform .25s;
+  }
+  .sidebar.open { transform: none; }
+  .side-user { display: flex; }
+  .scrim.show { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 30; }
+  .menu-btn { display: grid; }
+  .user-chip > div:last-child { display: none; }
+  .main { padding: 0 16px 90px; }
+  .listing-grid { grid-template-columns: 1fr; }
+  .listing-side { order: -1; }
+  .preview { max-width: 280px; }
+
+  .bottom-nav {
+    display: grid; grid-template-columns: repeat(4, 1fr); position: fixed; z-index: 20; left: 0; right: 0; bottom: 0;
+    background: #fff; border-top: 1px solid var(--line); padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+  .bottom-nav button { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10.5px; color: var(--muted); padding: 4px; }
+  .bottom-nav button.active { color: var(--green-700); font-weight: 600; }
+  .bottom-nav svg { width: 20px; height: 20px; }
+}
+
+@media (max-width: 560px) {
+  .stats { grid-template-columns: 1fr; gap: 10px; }
+  .stat:nth-child(1) { background: #e7f5ec; } .stat:nth-child(2) { background: #fff2dc; }
+  .stat:nth-child(3) { background: #ece7fb; } .stat:nth-child(4) { background: #def0fb; }
+  .form-grid { grid-template-columns: 1fr; }
+  .search { min-width: 0; width: 100%; order: 3; }
+  .toolbar h3 { flex: 1; }
+  .hbar-row { grid-template-columns: 80px 1fr 64px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ===== UI refinements ===== */
+:root {
+  --ring: 0 0 0 3px rgba(26, 127, 88, .14);
+  --shadow-sm: 0 1px 2px rgba(16, 60, 40, .05);
+  --shadow-md: 0 10px 26px rgba(16, 60, 40, .10);
+  --shadow-lg: 0 24px 60px rgba(16, 60, 40, .16);
+  --ease: cubic-bezier(.2, .7, .3, 1);
+}
+html { scroll-behavior: smooth; }
+body {
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -.005em;
+}
+* { scrollbar-width: thin; scrollbar-color: #c7d6cd transparent; }
+::selection { background: var(--green-100); color: var(--green-900); }
+
+/* Buttons */
+.btn {
+  min-height: 40px; white-space: nowrap; letter-spacing: .01em;
+  transition: background .16s, border-color .16s, color .16s, box-shadow .18s, transform .12s var(--ease);
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { box-shadow: 0 1px 2px rgba(11, 74, 52, .22), inset 0 1px 0 rgba(255, 255, 255, .10); }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(20, 107, 74, .28), inset 0 1px 0 rgba(255, 255, 255, .10); }
+.btn-primary:active { transform: translateY(1px); box-shadow: 0 1px 2px rgba(11, 74, 52, .22); }
+.btn-outline:hover, .btn-ghost:hover { background: var(--green-50); border-color: #cfe4d8; box-shadow: var(--shadow-sm); }
+.btn-ghost { color: var(--ink); }
+.icon-btn { border-radius: 12px; transition: background .16s, color .16s, transform .12s var(--ease); }
+.icon-btn:active { transform: scale(.94); }
+
+/* Logo */
+.brand-mark {
+  width: 42px; height: 42px; border-radius: 13px; flex: none; overflow: hidden;
+  display: grid; place-items: center;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, .22), inset 0 1px 0 rgba(255, 255, 255, .10);
+}
+.brand-mark svg { width: 100%; height: 100%; display: block; }
+.brand-mark-lg { width: 78px; height: 78px; border-radius: 22px; box-shadow: 0 16px 34px rgba(20, 60, 30, .22); }
+
+/* Auth */
+.auth { background-attachment: fixed; }
+.auth-card { border: 1px solid rgba(255, 255, 255, .7); padding: 38px 38px 30px; }
+.auth-brand { gap: 16px; }
+.auth-brand h1 { letter-spacing: -1.6px; }
+.auth-brand h1 span { color: var(--green-600); }
+.tagline { color: #3f4a36; letter-spacing: .02em; }
+.auth-copy h2 { letter-spacing: -.6px; }
+.tab { transition: color .16s, border-color .16s; }
+.tab:hover { color: var(--green-700); }
+.input-icon { height: 54px; transition: border-color .16s, box-shadow .16s; }
+.input-icon:hover { border-color: #cfe4d8; }
+.input-icon:focus-within { box-shadow: var(--ring); }
+.eye { padding: 2px; border-radius: 8px; color: var(--muted); transition: background .14s, color .14s; }
+.eye:hover { background: var(--green-50); color: var(--green-700); }
+.forgot { font-weight: 600; }
+
+@media (max-width: 860px) {
+  .auth-card { padding: 28px 22px 24px; border-radius: 20px; }
+  .input-icon { height: 50px; }
+}
+
+@media (max-height: 900px) {
+  .auth { gap: 18px; padding: 24px; }
+  .auth-copy { display: none; }
+}
+
+/* Sidebar */
+.side-brand {
+  gap: 12px; padding: 0 6px 18px; margin-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, .09); font-size: 19px;
+}
+.brand-text { display: flex; flex-direction: column; line-height: 1.05; min-width: 0; }
+.brand-text b { font-size: 19.5px; font-weight: 650; letter-spacing: -.5px; color: #fff; }
+.brand-text b span { color: #8fd8b0; }
+.brand-text small {
+  margin-top: 4px; font-size: 9px; font-weight: 600; letter-spacing: .16em;
+  text-transform: uppercase; color: rgba(231, 243, 236, .55);
+}
+.side-nav { gap: 3px; }
+.nav-item { position: relative; border-radius: 11px; transition: background .16s, color .16s, box-shadow .16s; }
+.nav-item:hover { background: rgba(255, 255, 255, .07); color: #fff; }
+.nav-item.active {
+  background: linear-gradient(90deg, #1f8a5e, #187a54);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, .18), inset 0 0 0 1px rgba(255, 255, 255, .10);
+}
+.nav-item.active::before {
+  content: ""; position: absolute; left: -14px; top: 50%; width: 3px; height: 22px;
+  border-radius: 0 3px 3px 0; background: #8fd8b0; transform: translateY(-50%);
+}
+.side-foot { padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .09); }
+
+/* Shell */
+.main { max-width: 1360px; margin: 0 auto; }
+.topbar {
+  position: sticky; top: 0; z-index: 18; padding: 16px 0;
+  background: rgba(243, 246, 244, .86);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+.topbar h2 { font-size: 22px; letter-spacing: -.5px; }
+.menu-btn { background: #fff; border: 1px solid var(--line); box-shadow: var(--shadow-sm); }
+.avatar { box-shadow: inset 0 0 0 1px rgba(11, 74, 52, .08); }
+.user-chip { border-radius: 999px; padding: 4px 12px 4px 4px; text-align: left; transition: background .16s; }
+.user-chip:hover { background: var(--green-100); }
+.side-user { width: 100%; border-radius: 10px; text-align: left; transition: background .16s; }
+.side-user:hover { background: rgba(255, 255, 255, .07); }
+.hello { font-size: 22px; letter-spacing: -.4px; }
+.sub { margin-bottom: 20px; }
+.view { animation: view-in .28s var(--ease); }
+@keyframes view-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Stats & panels */
+.stat {
+  gap: 13px; padding: 16px 17px; border: 1px solid rgba(230, 236, 232, .9);
+  box-shadow: var(--shadow-sm);
+  transition: transform .18s var(--ease), box-shadow .18s var(--ease), border-color .18s;
+}
+.stat[data-view] { position: relative; }
+.stat[data-view]:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: #d7e5dc; }
+.stat[data-view]::after {
+  content: ""; position: absolute; top: 18px; right: 18px; width: 6px; height: 6px;
+  border-top: 1.5px solid #b7dcc6; border-right: 1.5px solid #b7dcc6;
+  transform: rotate(45deg); opacity: 0; transition: opacity .16s, transform .16s var(--ease);
+}
+.stat[data-view]:hover::after { opacity: 1; transform: rotate(45deg) translate(2px, -2px); }
+.stat-ic { width: 44px; height: 44px; border-radius: 13px; }
+.toolbar h3, .listing-head h3 { letter-spacing: -.3px; }
+.stat b { font-size: 19px; letter-spacing: -.4px; font-variant-numeric: tabular-nums; }
+.stat small { letter-spacing: .01em; }
+.panel { border: 1px solid rgba(230, 236, 232, .9); box-shadow: var(--shadow-sm); }
+.panel h4 { font-size: 13.5px; letter-spacing: -.1px; }
+.sales-panel { margin-bottom: 16px; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.panel-head h4 { margin-bottom: 0; }
+.panel-tag {
+  font-size: 10.5px; font-weight: 600; color: var(--muted); background: var(--green-50);
+  border: 1px solid var(--line); border-radius: 99px; padding: 2px 10px; white-space: nowrap;
+}
+.sales-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+.skpi {
+  background: var(--green-50); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 12px; display: flex; flex-direction: column; gap: 1px; min-width: 0;
+}
+.skpi small { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.skpi b { font-size: 16px; letter-spacing: -.3px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.skpi span { font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#sales-chart .bar { background: var(--blue); box-shadow: 0 2px 6px rgba(45, 156, 219, .22); cursor: default; }
+#sales-chart .bar:hover { background: var(--blue); filter: brightness(.92); }
+@media (max-width: 860px) {
+  .sales-kpis { grid-template-columns: repeat(2, 1fr); }
+}
+.empty::before {
+  content: ""; display: block; width: 34px; height: 34px; margin: 0 auto 10px; border-radius: 50%;
+  background: var(--green-50) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%231a7f58' d='M20.5 3.5c-7.5-.5-13 2.5-14.3 9-.3 1.4-.2 2.7.2 3.9C4.9 17.6 4 19.6 4 21.5h2c0-1.5.6-2.9 1.6-4 1 .4 2.1.6 3.4.5 6.5-.5 9.7-6.4 9.5-14.5zM9 15c2-4 5-6 8-7-2.5 2.5-4.5 5-5.5 8.2-.9 0-1.8-.2-2.5-1.2z'/%3E%3C/svg%3E") center / 17px no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(11, 74, 52, .05);
+}
+td.empty { padding: 38px 16px; }
+.bar { background: linear-gradient(180deg, var(--green-600), var(--green-700)); border-radius: 5px 5px 2px 2px; box-shadow: 0 2px 6px rgba(20, 107, 74, .18); }
+.bar:hover { background: linear-gradient(180deg, var(--green-700), var(--green-800)); }
+.activities li { transition: background .12s; }
+.act-ic { border-radius: 10px; }
+
+/* Search, inputs, chips */
+.search { transition: border-color .16s, box-shadow .16s; }
+.search:hover { border-color: #cfe4d8; }
+.search:focus-within { box-shadow: var(--ring); }
+::placeholder { color: var(--muted); opacity: .72; }
+select, .form-grid input, .form-grid textarea { transition: border-color .16s, box-shadow .16s; }
+select:hover, .form-grid input:hover, .form-grid textarea:hover { border-color: #cfe4d8; }
+select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: var(--ring); }
+.chip { border-radius: 99px; transition: background .16s, color .16s, border-color .16s, box-shadow .16s; }
+.chip:hover { background: var(--green-50); color: var(--green-700); border-color: #cfe4d8; }
+.chip.active { box-shadow: 0 6px 14px rgba(20, 107, 74, .24); }
+.chip.active:hover { background: var(--green-800); border-color: var(--green-800); color: #fff; }
+
+/* Tables */
+.table-wrap { border-radius: var(--radius); }
+.table th {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted);
+}
+.table td { padding: 13px 16px; }
+.table td, .table th { font-variant-numeric: tabular-nums; }
+.table tbody tr { transition: background .12s; }
+.table tbody tr:hover { background: var(--green-50); }
+.thumb { width: 38px; height: 38px; border-radius: 10px; box-shadow: inset 0 0 0 1px rgba(11, 74, 52, .06); }
+.row-actions button { transition: background .14s, color .14s; }
+.stepper { background: var(--green-50); border: 1px solid var(--line); border-radius: 9px; padding: 2px; gap: 2px; }
+.stepper button {
+  width: 24px; height: 24px; border: 0; border-radius: 7px; background: #fff;
+  box-shadow: var(--shadow-sm); transition: background .14s, color .14s;
+}
+.stepper button:hover { background: var(--green-700); color: #fff; }
+.stepper b { min-width: 30px; font-variant-numeric: tabular-nums; }
+.table-foot { background: #f7faf8; }
+
+/* Marketplace */
+.cards { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+.card {
+  border: 1px solid rgba(230, 236, 232, .9); box-shadow: var(--shadow-sm);
+  transition: transform .18s var(--ease), box-shadow .18s var(--ease), border-color .18s;
+}
+.card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: #d7e5dc; }
+.card-body b { font-size: 14px; letter-spacing: -.15px; }
+.price-tag { font-size: 14.5px; font-weight: 700; color: var(--green-800); letter-spacing: -.3px; font-variant-numeric: tabular-nums; }
+.badge { padding: 2px 11px; letter-spacing: .02em; }
+.card-img { position: relative; }
+
+/* Modals, toast, notifications */
+.modal {
+  padding: 24px 24px 20px; border: 1px solid rgba(255, 255, 255, .6);
+  max-height: min(88vh, 820px); overflow: auto; animation: modal-in .22s var(--ease);
+}
+.modal::backdrop { -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+.modal h3, .modal form > h3 { letter-spacing: -.3px; padding-right: 30px; }
+.modal-x {
+  position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; border-radius: 10px;
+  display: grid; place-items: center; color: var(--muted);
+  background: rgba(255, 255, 255, .88); border: 1px solid var(--line);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  box-shadow: var(--shadow-sm); transition: background .14s, color .14s;
+}
+.modal-x:hover { background: var(--green-50); color: var(--green-700); }
+.modal-x svg { width: 16px; height: 16px; }
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+.toast { padding: 11px 18px; border-radius: 12px; box-shadow: var(--shadow-lg); }
+.notif { border: 1px solid var(--line); animation: view-in .18s var(--ease); }
+.notif li { transition: background .12s; }
+
+/* Reports, settings, listing */
+.hbar { background: var(--green-100); }
+.hbar i { background: linear-gradient(90deg, var(--green-600), var(--green-700)); }
+.summary dd { font-variant-numeric: tabular-nums; letter-spacing: -.2px; }
+.danger + .danger { padding-top: 14px; border-top: 1px solid var(--line); }
+.dropzone { transition: background .16s, border-color .16s; }
+.preview { box-shadow: inset 0 0 0 1px rgba(11, 74, 52, .05); }
+
+@media (max-width: 860px) {
+  .brand-mark-lg { width: 58px; height: 58px; border-radius: 17px; }
+  .topbar { padding: 14px 0; }
+  .user-chip { padding: 3px; }
+  .bottom-nav { box-shadow: 0 -10px 24px rgba(16, 60, 40, .07); }
+  .bottom-nav button { position: relative; transition: color .16s; }
+  .bottom-nav button.active::before {
+    content: ""; position: absolute; top: -6px; left: 50%; width: 24px; height: 3px;
+    border-radius: 0 0 3px 3px; background: var(--green-700); transform: translateX(-50%);
+  }
+}
+
+</style>
+</head>
+<body>
+
+<!-- ========== SVG ICON SPRITE ========== -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-leaf" viewBox="0 0 24 24"><path fill="currentColor" d="M20.5 3.5c-7.5-.5-13 2.5-14.3 9-.3 1.4-.2 2.7.2 3.9C4.9 17.6 4 19.600 4 21.500h2c0-1.500.6-2.900 1.600-4 1 .4 2.100.6 3.400.5 6.500-.5 9.700-6.400 9.500-14.500zM9 15c2-4 5-6 8-7-2.500 2.500-4.500 5-5.500 8.200-.9 0-1.800-.2-2.500-1.200z"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3 2 12h3v8h5v-5h4v5h5v-8h3L12 3z"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path fill="currentColor" d="M21 7.500 12 3 3 7.500v9L12 21l9-4.500v-9zM12 5.200l5.600 2.800L12 10.800 6.400 8 12 5.200zM5 9.600l6 3v6.200l-6-3V9.600zm8 9.200v-6.200l6-3v6.200l-6 3z"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path fill="currentColor" d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM5 5h12v2H5V5zm10 9.500a1.500 1.500 0 1 1 0-3 1.500 1.500 0 0 1 0 3z"/></symbol>
+    <symbol id="i-cart" viewBox="0 0 24 24"><path fill="currentColor" d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM1 2v2h2l3.600 7.600-1.400 2.400A2 2 0 0 0 7 17h12v-2H7.400l1.100-2h7.500a2 2 0 0 0 1.800-1l3.600-6.500A1 1 0 0 0 20.500 4H5.200l-.9-2H1z"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path fill="currentColor" d="M4 20V10h3v10H4zm6.500 0V4h3v16h-3zM17 20v-7h3v7h-3z"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><path fill="currentColor" d="M19.400 13a7.500 7.500 0 0 0 0-2l2.100-1.600a.5.500 0 0 0 .1-.6l-2-3.500a.5.500 0 0 0-.6-.2l-2.500 1a7.300 7.300 0 0 0-1.700-1l-.4-2.600a.5.500 0 0 0-.5-.4h-4a.5.500 0 0 0-.5.400l-.4 2.600a7.300 7.300 0 0 0-1.700 1l-2.500-1a.5.500 0 0 0-.6.200l-2 3.500a.5.500 0 0 0 .1.600L4.600 11a7.500 7.500 0 0 0 0 2l-2.100 1.600a.5.500 0 0 0-.1.600l2 3.500c.1.200.4.300.6.200l2.500-1c.5.400 1.100.7 1.700 1l.4 2.600c0 .2.200.4.500.4h4c.3 0 .5-.2.500-.4l.4-2.600c.6-.3 1.200-.6 1.700-1l2.500 1c.2.100.5 0 .6-.2l2-3.500a.5.500 0 0 0-.1-.6L19.400 13zM12 15.500a3.500 3.500 0 1 1 0-7 3.500 3.500 0 0 1 0 7z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><path fill="currentColor" d="M15.500 14h-.8l-.3-.3a6.500 6.500 0 1 0-.7.7l.3.3v.8l5 5 1.500-1.500-5-5zm-6 0a4.500 4.500 0 1 1 0-9 4.500 4.500 0 0 1 0 9z"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path fill="currentColor" d="M3 17.250V21h3.750L17.800 9.940l-3.750-3.750L3 17.250zM20.700 7.040a1 1 0 0 0 0-1.410l-2.340-2.340a1 1 0 0 0-1.410 0l-1.830 1.830 3.750 3.750 1.830-1.830z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path fill="currentColor" d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.500l-1-1h-5l-1 1H5v2h14V4z"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path fill="currentColor" d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6v-5c0-3.100-1.600-5.600-4.500-6.300V4a1.500 1.500 0 0 0-3 0v.7C7.600 5.400 6 7.900 6 11v5l-2 2v1h16v-1l-2-2z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path fill="currentColor" d="M12 5C7 5 2.700 8.100 1 12.500 2.700 16.900 7 20 12 20s9.300-3.100 11-7.500C21.300 8.100 17 5 12 5zm0 12.500a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><path fill="currentColor" d="M12 12a4.500 4.500 0 1 0 0-9 4.500 4.500 0 0 0 0 9zm0 2.250c-3 0-9 1.500-9 4.500V21h18v-2.250c0-3-6-4.500-9-4.500z"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><path fill="currentColor" d="M18 8h-1V6a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zM9 6a3 3 0 0 1 6 0v2H9V6z"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.250 7 13 7 13s7-7.750 7-13a7 7 0 0 0-7-7zm0 9.500a2.500 2.500 0 1 1 0-5 2.500 2.500 0 0 1 0 5z"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><path fill="currentColor" d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.500 13.500l2.500 3 3.500-4.500 4.500 6H5l3.500-4.500z"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path fill="currentColor" d="M20 11H7.800l5.600-5.600L12 4l-8 8 8 8 1.400-1.400L7.800 13H20v-2z"/></symbol>
+    <symbol id="i-seed" viewBox="0 0 24 24"><path fill="currentColor" d="M9 4.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0zM15.5 3.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 12.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM16 11a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0zM12 20a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0zM19 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"/></symbol>
+    <symbol id="i-sprout" viewBox="0 0 24 24"><path fill="currentColor" d="M11 21h2v-9h-2v9z"/><path fill="currentColor" d="M11 12C7.7 12 5 9.3 5 6c3.3 0 6 2.7 6 6z"/><path fill="currentColor" d="M13 10c0-3.3 2.7-6 6-6 0 3.3-2.7 6-6 6z"/></symbol>
+    <symbol id="i-flask" viewBox="0 0 24 24"><path fill="currentColor" d="M9 2h6v2h-1v5.2l4.7 8.1A3 3 0 0 1 16 21.5H8a3 3 0 0 1-2.7-4.2L10 9.2V4H9V2z"/></symbol>
+    <symbol id="i-tool" viewBox="0 0 24 24"><path fill="currentColor" d="M21.7 5.3a1 1 0 0 0-1.5-.1l-2.6 2.6-1.4-1.4 2.6-2.6a1 1 0 0 0-.1-1.5A6.5 6.5 0 0 0 9.4 9.6l-6.1 6.1a2.4 2.4 0 0 0 3.4 3.4l6.1-6.1a6.5 6.5 0 0 0 8.9-7.7z"/></symbol>
+    <symbol id="i-apple" viewBox="0 0 24 24"><path fill="currentColor" d="M12 7.1c-1.3-1.2-3.1-1.6-4.7-.8C5.2 7.2 4.3 9.4 4.7 11.8c.5 3 2.8 5.7 4.8 6.7.9.5 2 .5 2.9 0 2-1 4.3-3.7 4.8-6.7.4-2.4-.5-4.6-2.6-5.5-1.6-.8-3.4-.4-4.6.8z"/><path fill="currentColor" d="M12.6 5.6c.1-1.7 1.3-3.1 3-3.6.2 1.8-.9 3.4-2.4 3.9l-.6-.3z"/></symbol>
+    <symbol id="i-carrot" viewBox="0 0 24 24"><path fill="currentColor" d="M10 9.8c1.4-.9 3.2-.8 4.4.3 1.2 1.1 1.6 2.8 1.1 4.3l-2.8 7.1c-.3.9-1.6.9-1.9 0L8.2 12c-.3-1 .2-1.8 1.1-2.1l.7-.1Z"/><path fill="currentColor" opacity=".62" d="M10.5 10C9 9.1 8.2 7.5 8.2 5.8c1.5.3 2.7 1.3 3.3 2.7l-1 1.5Z"/><path fill="currentColor" opacity=".62" d="M13.5 10c1.5-.9 2.3-2.5 2.3-4.2 1.5.3 2.7 1.3 3.3 2.7l-5.6 1.5Z"/><path fill="currentColor" d="M12 9.8c-.7-1.7-.3-3.6 1-4.8.8 1 1.1 2.3.9 3.5-.1.7-.4 1.3-.8 1.8L12 9.8Z"/><g fill="none" stroke="#fff" stroke-opacity=".4" stroke-width=".9" stroke-linecap="round"><path d="M10 12.6h1.8M10.5 15.2h1.6M11 17.6h1.2"/></g></symbol>
+    <symbol id="i-tomato" viewBox="0 0 24 24"><path fill="currentColor" d="M12 7.4a6.8 6.8 0 1 0 0 13.6 6.8 6.8 0 0 0 0-13.6Z"/><path fill="currentColor" d="M12 8.4c-1.9 0-3.6-.8-4.8-2.3 1.1-.6 2.4-.7 3.6-.3-.1-1.1-.6-2.1-1.4-2.9 1-.5 2.3-.3 3 .5.6-.9 1.7-1.3 2.7-.9.5 1.1.1 2.3-.7 3.2 1.2-.3 2.5-.1 3.5.5-1.1 1.5-2.9 2.3-4.8 2.3H12Z"/><path fill="#fff" opacity=".35" d="M8.8 12.3c.8-1.4 2.2-2.3 3.8-2.4-1.7 1.1-2.7 2.7-3 4.8-.6-.7-.9-1.5-.8-2.4Z"/></symbol>
+    <symbol id="i-eggplant" viewBox="0 0 24 24"><ellipse cx="12.7" cy="14.9" rx="3.7" ry="7.3" transform="rotate(15 12.7 14.9)" fill="currentColor"/><path fill="currentColor" d="M12.5 8.4c-2.1 0-4-1.1-5.1-2.9 1.5-.8 3.3-.6 4.6.4-.1-1.6.6-3.2 2-4.1 1 1.3 1.1 3 .4 4.5 1.4-.6 3-.4 4.2.5-1 1-2.4 1.6-3.9 1.6h-2.2Z"/><path fill="currentColor" d="M11.9 5.4c-.2-1 .2-2 1-2.6.4 1 .2 2.1-.5 2.8l-.5-.2Z"/><path fill="#fff" opacity=".28" d="M10.6 14.2c.1-2 1.1-3.8 2.7-4.9-1.2 1.5-1.8 3.3-1.8 5.3l-.9-.4Z"/></symbol>
+    <symbol id="i-okra" viewBox="0 0 24 24"><path fill="currentColor" d="M12.1 6.6c1.7 1.9 2.5 4.4 2.4 7-.1 2.7-1.1 5-2.6 6.4-.8.7-1.9.7-2.7 0-1.4-1.5-2.1-3.8-2-6.4.1-2.6.9-5.1 2.4-7 .6-.7 1.9-.7 2.5 0Z" transform="rotate(-8 12 13)"/><path fill="currentColor" d="M12 6.4c-1.1-.1-2.1-.7-2.6-1.7.8-.5 1.8-.4 2.5.1-.1-.9.2-1.8.9-2.3.5.8.5 1.8.1 2.6.8-.4 1.8-.3 2.5.2-.6.8-1.5 1.3-2.5 1.3l-.9-.2Z"/><g fill="none" stroke="#fff" stroke-opacity=".4" stroke-width=".9" stroke-linecap="round"><path d="M10.6 9.7c-.2 1.7-.1 3.4.2 5M12 9.2c.1 2 .1 3.8-.1 5.7M13.3 9.7c.2 1.7.1 3.4-.2 5"/></g></symbol>
+    <symbol id="i-ampalaya" viewBox="0 0 24 24"><path fill="currentColor" d="M12 4.4c2.5 0 4.5 2 4.5 4.5 0 2.2 1.6 4 1.6 6.4 0 3-2.7 5-6.1 5s-6.1-2-6.1-5c0-2.4 1.6-4.2 1.6-6.4C7.5 6.4 9.5 4.4 12 4.4Z"/><path fill="currentColor" d="M12 4.6c-.6-1-.6-2.2 0-3.2.8.9 1 2.1.5 3.2H12Z"/><g fill="none" stroke="#fff" stroke-opacity=".35" stroke-width=".9" stroke-linecap="round"><path d="M9.3 8.6c-.5 1.6-.4 3.2.3 4.7M14.7 8.6c.5 1.6.4 3.2-.3 4.7M9.6 15.4c.5 1 .5 2.1.1 3.2M14.4 15.4c-.5 1-.5 2.1-.1 3.2"/></g></symbol>
+    <symbol id="i-chili" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3.3" stroke-linecap="round" d="M16.9 7.7c.9 2.3.4 4.9-1.3 6.9-1.6 1.9-3.7 3.4-6.1 4.6"/><path fill="currentColor" d="M9.1 18.6c-1 .5-2 1-3.1 1.3.5-1.1 1.2-2.1 2.1-2.9l1 1.6Z"/><path fill="currentColor" d="M16.5 7.3c-.2-1.5.4-2.9 1.6-3.7.5 1.4 0 3-1.1 3.9l-.5-.2Z"/><path fill="currentColor" d="M15.9 7c1.2-.4 2.5-.2 3.5.5-1 .6-2.3.7-3.4.3l-.1-.8Z"/><path fill="none" stroke="#fff" stroke-opacity=".3" stroke-width=".8" stroke-linecap="round" d="M15.6 10.6c-.4 1.3-1.2 2.4-2.2 3.4"/></symbol>
+    <symbol id="i-pepper" viewBox="0 0 24 24"><path fill="currentColor" d="M12 7.4c2.9 0 5.2 2.2 5.2 5 0 1.3.4 2.6 1 3.8.4.9-.3 1.9-1.2 1.9-.8 0-1.6-.3-2.3-.6-.7-.3-1.4-.3-2.1 0-.7.3-1.5.6-2.3.6-.9 0-1.6-1-1.2-1.9.6-1.2 1-2.5 1-3.8 0-2.8 2.3-5 5.2-5Z"/><path fill="currentColor" d="M12 7.5c-.4-1.1-.2-2.3.5-3.2.3-.4.7-.7 1.2-.8 0 1.1-.4 2.2-1.1 3l-.6 1Z"/><g fill="none" stroke="#fff" stroke-opacity=".32" stroke-width=".9" stroke-linecap="round"><path d="M9.5 9.6c-.7 1.1-1 2.4-.9 3.7M14.5 9.6c.7 1.1 1 2.4.9 3.7M12 9.3v4.4"/></g><path fill="#fff" opacity=".25" d="M9.4 10.6c.5-.9 1.4-1.5 2.4-1.7-1 .8-1.6 1.8-1.8 3-.4-.3-.7-.8-.6-1.3Z"/></symbol>
+    <symbol id="i-cabbage" viewBox="0 0 24 24"><path fill="currentColor" d="M12 4.6c4.2 0 7.4 3.1 7.4 7s-3.2 7-7.4 7-7.4-3.1-7.4-7 3.2-7 7.4-7Z"/><g fill="none" stroke="#fff" stroke-opacity=".4" stroke-linecap="round" stroke-width="1"><path d="M7.2 8.4c1.4-.9 3-1.3 4.8-1.2M16.8 8.4c-1.4-.9-3-1.3-4.8-1.2"/><path d="M6.4 11.5c1.6-1.3 3.6-2 5.6-2s4 .7 5.6 2"/><path d="M7 14.6c1.4-1.1 3.1-1.8 5-1.8s3.6.7 5 1.8"/><path d="M12 5.4v12.4"/></g><path fill="currentColor" opacity=".7" d="M8.1 16.5c-1.9.6-3.2 2-3.7 3.9 1.8.5 3.6.1 5-1M15.9 16.5c1.9.6 3.2 2 3.7 3.9-1.8.5-3.6.1-5-1"/></symbol>
+    <symbol id="i-beans" viewBox="0 0 24 24"><g fill="currentColor"><path d="M7.2 5c1.2 0 2.1.9 2.1 2.1v9.1c0 1.9-.8 3.7-2.1 5-1.3-1.3-2.1-3.1-2.1-5V7.1C5.1 5.9 6 5 7.2 5Z" transform="rotate(-13 7.2 13)"/><path d="M12 4.6c1.2 0 2.1.9 2.1 2.1v9.4c0 1.9-.8 3.8-2.1 5.1-1.3-1.3-2.1-3.2-2.1-5.1V6.7c0-1.2.9-2.1 2.1-2.1Z"/><path d="M16.8 5c1.2 0 2.1.9 2.1 2.1v9.1c0 1.9-.8 3.7-2.1 5-1.3-1.3-2.1-3.1-2.1-5V7.1c0-1.2.9-2.1 2.1-2.1Z" transform="rotate(13 16.8 13)"/></g><g fill="#fff" opacity=".38"><circle cx="7.1" cy="8" r=".7"/><circle cx="7.2" cy="11" r=".7"/><circle cx="7.2" cy="14" r=".7"/><circle cx="12" cy="7.6" r=".7"/><circle cx="12" cy="10.7" r=".7"/><circle cx="12" cy="13.8" r=".7"/><circle cx="16.9" cy="8" r=".7"/><circle cx="16.8" cy="11" r=".7"/><circle cx="16.8" cy="14" r=".7"/></g><path fill="currentColor" d="M12 4.6c-.3-.9-.1-1.9.5-2.6l1.3 1.1-.8 1.8-1-.3Z"/></symbol>
+    <symbol id="i-potato" viewBox="0 0 24 24"><path fill="currentColor" d="M16.4 6.3c2.6 1.5 3.9 4.9 2.8 7.8-1 2.7-3.6 4.6-6.5 4.6-2.2 0-4.3-1.1-5.5-2.9-1.5-2.3-1.3-5.4.5-7.5 2-2.4 5.5-3.3 8.2-2.1l.5.1Z"/><path fill="#fff" opacity=".32" d="M11 9.4a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8Zm5 1.2a.8.8 0 1 0 0 1.6.8.8 0 0 0 0-1.6Zm-4 3.4a.8.8 0 1 0 0 1.6.8.8 0 0 0 0-1.6Z"/></symbol>
+    <symbol id="i-rice" viewBox="0 0 24 24"><path fill="currentColor" d="M11 21h2V8.5h-2V21Z"/><path fill="currentColor" d="M12 8.9c-2.6 0-4.7-2-4.7-4.6 2.6 0 4.7 2 4.7 4.6Zm0 0c2.6 0 4.7-2 4.7-4.6-2.6 0-4.7 2-4.7 4.6Z"/><path fill="currentColor" opacity=".78" d="M12 13.2c-2.3 0-4.2-1.8-4.2-4.1 2.3 0 4.2 1.8 4.2 4.1Zm0 0c2.3 0 4.2-1.8 4.2-4.1-2.3 0-4.2 1.8-4.2 4.1Z"/><path fill="currentColor" opacity=".58" d="M12 17.4c-1.9 0-3.4-1.5-3.4-3.4 1.9 0 3.4 1.5 3.4 3.4Zm0 0c1.9 0 3.4-1.5 3.4-3.4-1.9 0-3.4 1.5-3.4 3.4Z"/></symbol>
+    <symbol id="i-corn" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3.4c2 0 3.6 2.9 3.6 6.6v4.6c0 3.7-1.6 6.6-3.6 6.6s-3.6-2.9-3.6-6.6V10c0-3.7 1.6-6.6 3.6-6.6Z"/><path fill="currentColor" opacity=".66" d="M9.4 8.6C6.7 9 4.6 10.8 3.8 13.3c-.5 1.7-.3 3.5.5 5.1.9-3.5 2.6-6.7 5.1-9.8Z"/><path fill="currentColor" opacity=".66" d="M14.6 8.6c2.7.4 4.8 2.2 5.6 4.7.5 1.7.3 3.5-.5 5.1-.9-3.5-2.6-6.7-5.1-9.8Z"/><path fill="currentColor" opacity=".66" d="M8.4 20.2c1 .9 2.3 1.4 3.6 1.4s2.6-.5 3.6-1.4c-.6 1.5-1.9 2.5-3.6 2.5s-3-1-3.6-2.5Z"/><path fill="currentColor" d="M12 3.7c-.7-1-.9-2.2-.5-3.3.8.9 1.1 2.1.9 3.3H12Z"/><g fill="none" stroke="#fff" stroke-opacity=".35" stroke-width=".8"><path d="M10.7 5.4v13.2M13.3 5.4v13.2M9.1 8.4h5.8M9.1 11h5.8M9.1 13.6h5.8M9.1 16.2h5.8"/></g></symbol>
+    <symbol id="i-banana" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="4.8" stroke-linecap="round" d="M6.9 7.6c.3 3.7 2.1 7 5.1 9.3 1.6 1.2 3.4 1.9 5.4 2.1"/><path fill="currentColor" d="M17 18.6c.7.2 1.3.7 1.7 1.3-.8.3-1.8.1-2.4-.4l.7-.9Z"/><path fill="currentColor" d="M6.6 7.3c-.7-.9-.9-2-.6-3.1.9.2 1.7.8 2.1 1.7l-1.5 1.4Z"/><path fill="none" stroke="#fff" stroke-opacity=".32" stroke-width=".8" stroke-linecap="round" d="M9.2 9.2c.7 1.3 1.6 2.4 2.7 3.3"/></symbol>
+    <symbol id="i-mango" viewBox="0 0 24 24"><path fill="currentColor" d="M15.7 5.9c2.2 1.2 3.5 3.8 3 6.4-.6 3.2-3.3 5.7-6.6 5.8-2.6.1-5-1.3-6.1-3.6-1.2-2.5-.6-5.5 1.4-7.4 2.5-2.4 6.1-2.9 8.3-1.2Z"/><path fill="currentColor" d="M16 6c.1-1.2.8-2.3 1.9-2.8.3 1.2-.2 2.5-1.2 3.1l-.7-.3Z"/><path fill="currentColor" opacity=".6" d="M17.7 5.2c1.7-1.2 3.8-1.4 5.7-.4-1 1.8-3.2 2.5-5 1.7l-.7-1.3Z"/><path fill="#fff" opacity=".32" d="M9.5 12.2c.9-2 2.6-3.4 4.8-3.9-2.4 1.5-4 3.6-4.7 6.1-.5-.8-.6-1.5-.1-2.2Z"/></symbol>
+    <symbol id="i-watermelon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.8c5.3 0 9.5 4.2 9.5 9.4v2.3H2.5v-2.3C2.5 7 6.7 2.8 12 2.8Z"/><path fill="currentColor" opacity=".5" d="M2.5 15.4h19c-.1 4.6-4.3 8.2-9.5 8.2s-9.4-3.6-9.5-8.2Z"/><path fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1" d="M4.6 16h14.8"/><path fill="#fff" opacity=".38" d="M9.2 7.1a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8Zm6 1.1a.8.8 0 1 0 0 1.6.8.8 0 0 0 0-1.6Zm-3.5 3.1a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8Z"/></symbol>
+    <symbol id="i-coconut" viewBox="0 0 24 24"><path fill="currentColor" d="M12 4.9c4.2 0 7.5 3.2 7.5 7.2s-3.3 7.2-7.5 7.2-7.5-3.2-7.5-7.2S7.8 4.9 12 4.9Z"/><path fill="currentColor" opacity=".65" d="M6.9 5.5C4.9 6.8 3.6 9 3.6 11.9l2.4-1.3c.1-1.9.4-3.7.9-5.1Zm10.2 0c2 1.3 3.3 3.5 3.3 6.4l-2.4-1.3c-.1-1.9-.4-3.7-.9-5.1Z"/><path fill="#fff" opacity=".38" d="M9.7 8.3a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm4.6 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2ZM12 11.5a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/></symbol>
+    <symbol id="i-squash" viewBox="0 0 24 24"><path fill="currentColor" d="M12 6c4.8 0 8.5 3.3 8.5 7.4 0 4.3-3.7 7.4-8.5 7.4s-8.5-3.1-8.5-7.4C3.5 9.3 7.2 6 12 6Z"/><path fill="currentColor" d="M12 6.2c-.2-1.1.3-2.2 1.3-2.8.5 1 .3 2.2-.4 3.1l-.9-.3Z"/><path fill="none" stroke="#fff" stroke-opacity=".4" stroke-width="1" stroke-linecap="round" d="M8.1 7.8c-1.5 1.7-2.4 3.7-2.4 5.9s.9 4.3 2.4 6M15.9 7.8c1.5 1.7 2.4 3.7 2.4 5.9s-.9 4.3-2.4 6"/></symbol>
+    <symbol id="i-papaya" viewBox="0 0 24 24"><ellipse cx="12.2" cy="13.2" rx="5.1" ry="7.9" transform="rotate(-18 12.2 13.2)" fill="currentColor"/><ellipse cx="12.2" cy="13.2" rx="2.7" ry="5.2" transform="rotate(-18 12.2 13.2)" fill="#fff" opacity=".38"/><g fill="currentColor" opacity=".55"><circle cx="11.3" cy="10.6" r=".62"/><circle cx="13.1" cy="11.6" r=".58"/><circle cx="11.5" cy="12.8" r=".6"/><circle cx="13.3" cy="13.9" r=".58"/><circle cx="11.8" cy="15.2" r=".56"/><circle cx="13.5" cy="16.2" r=".5"/></g><path fill="currentColor" d="M16.2 5.7c0-1 .5-1.9 1.3-2.4.2 1-.2 2.1-1 2.7l-.3-.3Z"/></symbol>
+    <symbol id="i-pineapple" viewBox="0 0 24 24"><path fill="currentColor" d="M12 7.9c2.9 0 5.2 3 5.4 6.7.2 3.9-2.1 6.7-5.4 6.7s-5.6-2.8-5.4-6.7C6.8 10.9 9.1 7.9 12 7.9Z"/><path fill="currentColor" d="M12 8.2 10 3.4l2.1.7.1-3 1.5 2.7 1.9-1.4-.7 3.1 2.8-.6-2.4 2.5L12 8.2Z"/><path fill="currentColor" opacity=".6" d="M9.5 8.1 6.8 5.2l.4 2.2-2.6-.3 2.9 2.5M14.5 8.1l2.7-2.9-.4 2.2 2.6-.3-2.9 2.5"/><g fill="none" stroke="#fff" stroke-opacity=".38" stroke-width=".9" stroke-linecap="round"><path d="m8.4 12.1 7.2 5.5M15.6 12.1l-7.2 5.5M8.2 15.7h7.6M12 9.7v10.2"/></g></symbol>
+    <symbol id="i-onion" viewBox="0 0 24 24"><path fill="currentColor" d="M12 7.3c3.8 0 6.7 2.9 6.7 6.4s-2.9 6.3-6.7 6.3-6.7-2.8-6.7-6.3S8.2 7.3 12 7.3Z"/><path fill="currentColor" d="M12 7.6c-.7-1.3-.8-2.9-.2-4.3.4-.9.9-1.6 1.7-2 .3 1.4.1 2.8-.5 4-.3.6-.5 1.4-.4 2.2l-.6.1Z"/><path fill="none" stroke="#fff" stroke-opacity=".4" stroke-width=".9" stroke-linecap="round" d="M9.2 9.2c-1 2-1.3 4.4-.8 6.7M12 8.5v9.4M14.8 9.2c1 2 1.3 4.4.8 6.7"/></symbol>
+    <symbol id="i-garlic" viewBox="0 0 24 24"><path fill="currentColor" d="M12 7.2c1.2 0 2 1.1 2.7 2.6.8 1.6 2 2.5 2.8 3.9.9 1.6.1 3.7-1.8 4.7-2.4 1.2-5.7 1.2-8.2 0-1.6-.8-2.3-2.4-1.8-3.9.4-1.1 1.3-1.9 2.1-2.7 1.1-1.1 1.7-2.2 2-3.4.3-.9.9-1.6 2.2-1.6Z"/><path fill="currentColor" d="M12 7.3c-.8-1-1.1-2.1-.9-3.3.9.2 1.6.9 2 1.8.2-1 .8-1.8 1.7-2.2.3 1.1 0 2.2-.8 3-.3.3-.7.5-1.1.6l-.9.1Z"/><path fill="none" stroke="#fff" stroke-opacity=".4" stroke-width=".9" stroke-linecap="round" d="M10.1 9.9c-1.3 2.2-1.8 4.8-1.3 7.2M13.9 9.9c1.3 2.2 1.8 4.8 1.3 7.2"/></symbol>
+    <symbol id="i-wheat" viewBox="0 0 24 24"><path fill="currentColor" d="M11 21h2V8h-2v13z"/><path fill="currentColor" d="M12 8.6C9.8 8.6 8 6.8 8 4.6c2.2 0 4 1.8 4 4zm0 0c2.2 0 4-1.8 4-4-2.2 0-4 1.8-4 4z"/><path fill="currentColor" d="M12 13.2c-2.2 0-4-1.8-4-4 2.2 0 4 1.8 4 4zm0 0c2.2 0 4-1.8 4-4-2.2 0-4 1.8-4 4z"/><path fill="currentColor" d="M12 17.8c-2.2 0-4-1.8-4-4 2.2 0 4 1.8 4 4zm0 0c2.2 0 4-1.8 4-4-2.2 0-4 1.8-4 4z"/></symbol>
+    <symbol id="i-basket" viewBox="0 0 24 24"><path fill="currentColor" d="M4.5 8.5h15l-1.8 8.3a2 2 0 0 1-2 1.6H8.3a2 2 0 0 1-2-1.6L4.5 8.5z"/><path fill="currentColor" d="M3 6h18v2H3V6z"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path fill="currentColor" d="M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5v-2H5V5h5V3zm6.6 4.4L15.2 8.8 17.4 11H9v2h8.4l-2.2 2.2 1.4 1.4L21.2 12l-4.6-4.6z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12z"/></symbol>
+    <symbol id="i-logo" viewBox="0 0 48 48">
+      <defs>
+        <linearGradient id="brandGrad" x1="6" y1="4" x2="42" y2="46" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#1a7f58"/>
+          <stop offset=".55" stop-color="#0f5a40"/>
+          <stop offset="1" stop-color="#0b4a34"/>
+        </linearGradient>
+      </defs>
+      <rect x="1.5" y="1.5" width="45" height="45" rx="12.5" fill="url(#brandGrad)"/>
+      <rect x="1.5" y="1.5" width="45" height="45" rx="12.5" fill="none" stroke="#ffffff" stroke-opacity=".16" stroke-width="1.2"/>
+      <path d="M11.5 35.5c7.5 2.4 17.5 2.4 25 0" fill="none" stroke="#7fd6a4" stroke-opacity=".5" stroke-width="2.2" stroke-linecap="round"/>
+      <path d="M24 36V20" stroke="#f1f8f4" stroke-width="2.8" stroke-linecap="round"/>
+      <path d="M23 24.5c-6.6 0-10.8-4.2-11.2-10.4 6.2-.6 11 3.8 11.2 10.4z" fill="#e4f2ea"/>
+      <path d="M25 21.5c.2-6.2 4.4-10.6 10.8-10.6.4 6-4 10.4-10.8 10.6z" fill="#7fd6a4"/>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- ========== AUTH SCREEN ========== -->
+<div id="auth" class="auth">
+  <div class="auth-hero">
+    <div class="auth-brand">
+      <span class="brand-mark brand-mark-lg" aria-hidden="true"><svg><use href="#i-logo"/></svg></span>
+      <div>
+        <h1>Agri<span>Track</span></h1>
+        <p class="tagline">Grow • Manage • Sell</p>
+      </div>
+    </div>
+    <div class="auth-copy">
+      <h2>Your Farm,<br>All in One Place</h2>
+      <p>Track your inventory, manage expenses,<br>and connect with buyers — all in one system.</p>
+    </div>
+  </div>
+
+  <div class="auth-card">
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-auth="login" role="tab">Log In</button>
+      <button class="tab" data-auth="signup" role="tab">Create Account</button>
+    </div>
+
+    <form id="login-form" class="auth-form" autocomplete="on">
+      <label class="input-icon">
+        <svg><use href="#i-user"/></svg>
+        <input type="text" id="login-user" placeholder="Email or Username" required>
+      </label>
+      <label class="input-icon">
+        <svg><use href="#i-lock"/></svg>
+        <input type="password" id="login-pass" placeholder="Password" required>
+        <button type="button" class="eye" id="toggle-pass" aria-label="Show password"><svg><use href="#i-eye"/></svg></button>
+      </label>
+      <a href="#" class="forgot" id="forgot">Forgot password?</a>
+      <p class="form-error" id="login-error" hidden></p>
+      <button type="submit" class="btn btn-primary btn-block">Log In</button>
+      <p class="switch">Don't have an account? <a href="#" data-switch="signup">Create Account</a></p>
+    </form>
+
+    <form id="signup-form" class="auth-form" hidden>
+      <label class="input-icon">
+        <svg><use href="#i-user"/></svg>
+        <input type="text" id="signup-name" placeholder="Full name" required>
+      </label>
+      <label class="input-icon">
+        <svg><use href="#i-user"/></svg>
+        <input type="text" id="signup-user" placeholder="Email or Username" required>
+      </label>
+      <label class="input-icon">
+        <svg><use href="#i-lock"/></svg>
+        <input type="password" id="signup-pass" placeholder="Password (min. 6 characters)" minlength="6" required>
+      </label>
+      <label class="input-icon">
+        <svg><use href="#i-leaf"/></svg>
+        <select id="signup-role" aria-label="Account type">
+          <option value="farmer">Farmer</option>
+          <option value="buyer">Buyer</option>
+        </select>
+      </label>
+      <p class="form-error" id="signup-error" hidden></p>
+      <button type="submit" class="btn btn-primary btn-block">Create Account</button>
+      <p class="switch">Already have an account? <a href="#" data-switch="login">Log In</a></p>
+    </form>
+  </div>
+</div>
+
+<!-- ========== APP SHELL ========== -->
+<div id="app" class="app" hidden>
+  <div class="scrim" id="scrim"></div>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="side-brand">
+      <span class="brand-mark" aria-hidden="true"><svg><use href="#i-logo"/></svg></span>
+      <span class="brand-text"><b>Agri<span>Track</span></b><small>Farm Management</small></span>
+    </div>
+    <button class="side-user" id="side-user" type="button" aria-label="Open profile settings">
+      <div class="avatar" data-avatar></div>
+      <div><b data-user-name></b><small data-role>Farmer</small></div>
+    </button>
+    <nav class="side-nav">
+      <button class="nav-item" data-view="dashboard"><svg><use href="#i-home"/></svg>Dashboard</button>
+      <button class="nav-item" data-view="inventory"><svg><use href="#i-box"/></svg>Inventory</button>
+      <button class="nav-item" data-view="expenses"><svg><use href="#i-wallet"/></svg>Expenses</button>
+      <button class="nav-item" data-view="marketplace"><svg><use href="#i-cart"/></svg>Marketplace</button>
+      <button class="nav-item" data-view="reports"><svg><use href="#i-chart"/></svg>Reports</button>
+    </nav>
+    <div class="side-foot">
+      <button class="nav-item" id="nav-settings" data-view="settings"><svg><use href="#i-gear"/></svg>Settings</button>
+      <button class="nav-item" id="side-logout" hidden><svg><use href="#i-logout"/></svg>Log out</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="menu-btn" aria-label="Open menu"><svg><use href="#i-menu"/></svg></button>
+      <h2 id="page-title">Dashboard</h2>
+      <div class="top-right">
+        <button class="icon-btn bell" id="bell" aria-label="Notifications"><svg><use href="#i-bell"/></svg><i class="dot"></i></button>
+        <div class="notif" id="notif" hidden></div>
+        <button class="user-chip" id="user-chip" type="button" aria-label="Open profile settings">
+          <div class="avatar" data-avatar></div>
+          <div><b data-user-name></b><small data-role>Farmer</small></div>
+        </button>
+      </div>
+    </header>
+
+    <!-- DASHBOARD -->
+    <section class="view" id="view-dashboard">
+      <h3 class="hello">Hello, <span id="hello-name">Farmer</span>!</h3>
+      <p class="sub">Here's what's happening with your farm today.</p>
+
+      <div class="stats">
+        <div class="stat" data-view="inventory" role="button" tabindex="0"><span class="stat-ic green"><svg><use href="#i-leaf"/></svg></span><div><small>Total Inventory</small><b id="st-inv">0 items</b></div></div>
+        <div class="stat" data-view="expenses" role="button" tabindex="0"><span class="stat-ic orange"><svg><use href="#i-wallet"/></svg></span><div><small>Total Expenses</small><b id="st-exp">₱0</b></div></div>
+        <div class="stat" data-view="marketplace" role="button" tabindex="0"><span class="stat-ic purple"><svg><use href="#i-cart"/></svg></span><div><small>Active Listings</small><b id="st-list">0 crops</b></div></div>
+        <div class="stat" data-view="reports" role="button" tabindex="0"><span class="stat-ic blue"><svg><use href="#i-chart"/></svg></span><div><small>Total Sales</small><b id="st-sales">₱0</b></div></div>
+      </div>
+
+      <div class="panel sales-panel">
+        <div class="panel-head">
+          <h4>Sales Overview</h4>
+          <span class="panel-tag">Orders &amp; sold listings</span>
+        </div>
+        <div class="sales-kpis" id="sl-kpis"></div>
+        <div class="chart" id="sales-chart"></div>
+      </div>
+
+      <div class="dash-grid">
+        <div class="panel">
+          <h4>Expenses Overview</h4>
+          <div class="chart" id="chart"></div>
+        </div>
+        <div class="panel">
+          <h4>Recent Activities</h4>
+          <ul class="activities" id="activities"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- INVENTORY -->
+    <section class="view" id="view-inventory" hidden>
+      <div class="toolbar">
+        <h3>Farm Inventory</h3>
+        <label class="search"><svg><use href="#i-search"/></svg><input type="search" id="inv-search" placeholder="Search items..."></label>
+        <button class="btn btn-outline" id="export-inv">Export CSV</button>
+        <button class="btn btn-primary" id="add-item"><svg class="btn-ic"><use href="#i-plus"/></svg>Add Item</button>
+      </div>
+      <div class="panel table-wrap">
+        <table class="table inv-table">
+          <thead><tr><th>Image</th><th data-t="inv" data-sort="name">Item Name</th><th data-t="inv" data-sort="category">Category</th><th data-t="inv" data-sort="qty">Quantity</th><th data-t="inv" data-sort="unit">Unit</th><th data-t="inv" data-sort="cost">Unit Cost</th><th>Total Value</th><th data-t="inv" data-sort="date">Date Added</th><th class="r">Actions</th></tr></thead>
+          <tbody id="inv-body"></tbody>
+        </table>
+        <div class="table-foot"><span id="inv-count"></span></div>
+      </div>
+    </section>
+
+    <!-- EXPENSES -->
+    <section class="view" id="view-expenses" hidden>
+      <div class="toolbar">
+        <h3>Expense Management</h3>
+        <button class="btn btn-outline" id="export-exp">Export CSV</button>
+      </div>
+      <div class="stats exp-stats">
+        <div class="stat"><span class="stat-ic orange"><svg><use href="#i-wallet"/></svg></span><div><small>Total Expenses</small><b id="es-total">₱0</b></div></div>
+        <div class="stat"><span class="stat-ic green"><svg><use href="#i-chart"/></svg></span><div><small>This Month</small><b id="es-month">₱0</b></div></div>
+        <div class="stat"><span class="stat-ic purple"><svg><use href="#i-box"/></svg></span><div><small>Entries</small><b id="es-count">0</b></div></div>
+        <div class="stat"><span class="stat-ic blue"><svg><use href="#i-leaf"/></svg></span><div><small>Top Category</small><b id="es-top">—</b></div></div>
+      </div>
+      <div class="filters">
+        <label>Date Range<select id="exp-date"></select></label>
+        <label>Category
+          <select id="exp-cat">
+            <option value="all">All Categories</option>
+            <option>Input</option><option>Operations</option><option>Maintenance</option><option>Others</option>
+          </select>
+        </label>
+        <label class="search grow"><svg><use href="#i-search"/></svg><input type="search" id="exp-search" placeholder="Search expenses..."></label>
+      </div>
+      <div class="panel table-wrap">
+        <table class="table exp-table">
+          <thead><tr><th data-t="exp" data-sort="date">Date</th><th data-t="exp" data-sort="desc">Description</th><th data-t="exp" data-sort="cat">Category</th><th data-t="exp" data-sort="pay">Payment</th><th class="r" data-t="exp" data-sort="amt">Amount</th><th class="r">Actions</th></tr></thead>
+          <tbody id="exp-body"></tbody>
+        </table>
+        <div class="table-foot total">Total Expenses: <b id="exp-total">₱0</b></div>
+      </div>
+    </section>
+
+    <!-- MARKETPLACE -->
+    <section class="view" id="view-marketplace" hidden>
+      <div class="toolbar">
+        <h3>Crop Marketplace</h3>
+        <label class="search"><svg><use href="#i-search"/></svg><input type="search" id="mk-search" placeholder="Search crops..."></label>
+        <button class="btn btn-primary" id="add-listing"><svg class="btn-ic"><use href="#i-plus"/></svg>Add Listing</button>
+      </div>
+      <div class="chips" id="mk-chips">
+        <button class="chip active" data-cat="All">All</button>
+        <button class="chip" data-cat="Vegetables">Vegetables</button>
+        <button class="chip" data-cat="Fruits">Fruits</button>
+        <button class="chip" data-cat="Grains">Grains</button>
+        <button class="chip" data-cat="Others">Others</button>
+      </div>
+      <div class="cards" id="mk-cards"></div>
+    </section>
+
+    <!-- ADD LISTING -->
+    <section class="view" id="view-newlisting" hidden>
+      <div class="panel listing-panel">
+        <div class="listing-head">
+          <button class="icon-btn" id="listing-back" aria-label="Back"><svg><use href="#i-back"/></svg></button>
+          <h3>Add New Listing</h3>
+        </div>
+        <div class="listing-grid">
+          <form id="listing-form" class="form-grid">
+            <label>Crop Name<input type="text" id="l-name" placeholder="e.g. Tomato" required></label>
+            <label>Category
+              <select id="l-cat" required>
+                <option value="" disabled selected>Select category</option>
+                <option>Vegetables</option><option>Fruits</option><option>Grains</option><option>Others</option>
+              </select>
+            </label>
+            <label>Quantity<input type="number" id="l-qty" min="1" step="any" placeholder="e.g. 10" required></label>
+            <label>Unit
+              <select id="l-unit"><option value="kg">kg</option><option value="sack">sack</option></select>
+            </label>
+            <label class="price">Price per Unit
+              <span class="price-wrap"><input type="number" id="l-price" min="0" step="any" placeholder="e.g. 50" required><i>₱</i></span>
+            </label>
+            <label>Contact Number<input type="tel" id="l-phone" placeholder="e.g. 0917 555 0101"></label>
+            <label class="full">Farm Location<input type="text" id="l-loc" placeholder="e.g. Bongabong, Oriental Mindoro" required></label>
+            <label class="full">Description<textarea id="l-desc" rows="3" placeholder="Add details about your crop..."></textarea></label>
+            <div class="full">
+              <span class="lbl">Upload Photos</span>
+              <label class="dropzone" id="dropzone">
+                <input type="file" id="l-photo" accept="image/*" hidden>
+                <svg><use href="#i-image"/></svg>
+                <span id="drop-text">Click to upload or drag and drop</span>
+              </label>
+            </div>
+            <div class="form-actions full">
+              <button type="button" class="btn btn-ghost" id="listing-cancel">Cancel</button>
+              <button type="submit" class="btn btn-primary">Save Listing</button>
+            </div>
+          </form>
+          <aside class="listing-side">
+            <div class="preview" id="preview"></div>
+            <svg class="leaf-ic"><use href="#i-leaf"/></svg>
+            <p>Share your harvest<br>and reach more buyers!</p>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- REPORTS -->
+    <section class="view" id="view-reports" hidden>
+      <div class="toolbar"><h3>Reports</h3></div>
+      <div class="dash-grid">
+        <div class="panel"><h4>Expenses by Category</h4><div id="rp-exp" class="bars"></div></div>
+        <div class="panel"><h4>Inventory by Category</h4><div id="rp-inv" class="bars"></div></div>
+      </div>
+      <div class="panel summary">
+        <h4>Summary</h4>
+        <dl id="rp-summary"></dl>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="view-settings" hidden>
+      <div class="toolbar"><h3>Settings</h3></div>
+      <div class="panel settings">
+        <form id="profile-form" class="form-grid">
+          <label>Display name<input type="text" id="set-name" required></label>
+          <div class="settings-role">Account type <b id="set-role">Farmer</b></div>
+          <label>Farm name<input type="text" id="set-farm" placeholder="e.g. Dela Cruz Farm"></label>
+          <label>Contact number<input type="tel" id="set-phone" placeholder="e.g. 0917 555 0101"></label>
+          <label class="full">Farm location<input type="text" id="set-loc" placeholder="e.g. Bongabong, Oriental Mindoro"></label>
+          <div class="form-actions full"><button class="btn btn-primary" type="submit">Save changes</button></div>
+        </form>
+        <hr>
+        <div class="danger">
+          <div><b>Reset demo data</b><small>Restores the sample inventory, expenses and listings.</small></div>
+          <button class="btn btn-danger" id="reset-data">Reset data</button>
+        </div>
+        <div class="danger">
+          <div><b>Log out</b><small>You can log back in anytime.</small></div>
+          <button class="btn btn-outline" id="logout">Log out</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Mobile bottom navigation -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <button data-view="dashboard"><svg><use href="#i-home"/></svg>Home</button>
+    <button data-view="inventory"><svg><use href="#i-box"/></svg>Inventory</button>
+    <button data-view="expenses"><svg><use href="#i-wallet"/></svg>Expenses</button>
+    <button data-view="marketplace"><svg><use href="#i-cart"/></svg>Marketplace</button>
+  </nav>
+</div>
+
+<!-- ========== MODALS ========== -->
+<dialog id="item-modal" class="modal">
+  <button type="button" class="modal-x" data-close aria-label="Close"><svg><use href="#i-x"/></svg></button>
+  <form id="item-form" method="dialog" class="form-grid">
+    <h3 class="full" id="item-title">Add Item</h3>
+    <label class="full">Item Name<input type="text" id="i-name" required></label>
+    <label>Category
+      <select id="i-cat">
+        <option>Seeds</option><option>Seedlings</option><option>Material</option><option>Equipment</option><option>Produce</option>
+      </select>
+    </label>
+    <label>Date Added<input type="date" id="i-date" required></label>
+    <label>Quantity<input type="number" id="i-qty" min="0" step="any" required></label>
+    <label>Unit
+      <select id="i-unit">
+        <option value="kg">kg</option>
+        <option value="sack">sack</option>
+        <option value="bags">bags</option>
+        <option value="unit">unit</option>
+      </select>
+    </label>
+    <label>Supplier / Source<input type="text" id="i-supplier" placeholder="e.g. Local co-op"></label>
+    <label class="price">Unit Cost
+      <span class="price-wrap"><input type="number" id="i-cost" min="0" step="any" placeholder="e.g. 120"><i>₱</i></span>
+    </label>
+    <label class="full check"><input type="checkbox" id="i-logexp" checked> Record total cost as an expense</label>
+    <label class="full">Notes<textarea id="i-notes" rows="2" placeholder="Optional notes about this item..."></textarea></label>
+    <div class="form-actions full">
+      <button type="button" class="btn btn-ghost" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Save item</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="exp-modal" class="modal">
+  <button type="button" class="modal-x" data-close aria-label="Close"><svg><use href="#i-x"/></svg></button>
+  <form id="exp-form" method="dialog" class="form-grid">
+    <h3 class="full" id="exp-title">Add Expense</h3>
+    <p class="full modal-note" id="exp-summary"></p>
+    <label>Date<input type="date" id="e-date" required></label>
+    <label>Category
+      <select id="e-cat"><option>Input</option><option>Operations</option><option>Maintenance</option><option>Others</option></select>
+    </label>
+    <label class="full">Description<input type="text" id="e-desc" required></label>
+    <label class="price">Amount
+      <span class="price-wrap"><input type="number" id="e-amt" min="0" step="any" required><i>₱</i></span>
+    </label>
+    <label>Payment Method
+      <select id="e-pay"><option>Cash</option><option>GCash</option><option>Bank Transfer</option><option>Check</option><option>Credit</option></select>
+    </label>
+    <label class="full">Paid To<input type="text" id="e-paidto" placeholder="e.g. Agri Supply Store"></label>
+    <label class="full">Notes<textarea id="e-notes" rows="2" placeholder="Optional notes or receipt no..."></textarea></label>
+    <div class="form-actions full">
+      <button type="button" class="btn btn-ghost" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary">Save expense</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="listing-modal" class="modal">
+  <button type="button" class="modal-x" data-close aria-label="Close"><svg><use href="#i-x"/></svg></button>
+  <div class="card-img" id="lm-img"></div>
+  <h3 id="lm-name"></h3>
+  <p class="lm-meta" id="lm-meta"></p>
+  <p class="loc"><svg><use href="#i-pin"/></svg><span id="lm-loc"></span></p>
+  <p class="lm-seller" id="lm-seller"></p>
+  <p class="lm-desc" id="lm-desc"></p>
+  <div class="lm-order" id="lm-order">
+    <label id="lm-order-label"><span id="lm-order-text">Simulate a buyer order</span>
+      <input type="number" id="lm-qty" min="1" step="any" value="1">
+    </label>
+    <button class="btn btn-outline" id="lm-order-btn" type="button">Receive order</button>
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-danger" id="lm-remove" type="button">Remove</button>
+    <button class="btn btn-primary" id="lm-sold" type="button">Mark sold</button>
+    <button class="btn btn-ghost" type="button" data-close>Close</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ===== AgriTrack – app logic =====
+   Data is stored in MySQL and reached through the local API at /api.
+*/
+(() => {
+  'use strict';
+
+  /* ---------- Helpers ---------- */
+  const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const peso = (n) => '₱' + Number(n || 0).toLocaleString('en-PH', { maximumFractionDigits: 2 });
+  const num = (n) => Number(n).toLocaleString('en-PH', { maximumFractionDigits: 2 });
+  const parseDay = (iso) => new Date(iso + 'T00:00:00');
+  const fmtDate = (iso) => parseDay(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const fmtStamp = (iso) => {
+    const d = new Date(iso);
+    const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    return `${date} • ${time}`;
+  };
+  const today = () => new Date().toISOString().slice(0, 10);
+  const monthKey = (iso) => iso.slice(0, 7);
+  const monthLabel = (key, long) =>
+    new Date(key + '-01T00:00:00').toLocaleDateString('en-US', long ? { month: 'long', year: 'numeric' } : { month: 'short' });
+  const initials = (name) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+
+  const CATEGORY_ICON = { Seeds: 'i-seed', Seedlings: 'i-sprout', Material: 'i-flask', Equipment: 'i-tool', Produce: 'i-apple' };
+  const LISTING_ICON = { Vegetables: 'i-carrot', Fruits: 'i-apple', Grains: 'i-wheat', Others: 'i-basket' };
+  const CROP_RULES = [
+    [/(tomato|kamatis)/, 'i-tomato'],
+    [/(eggplant|talong)/, 'i-eggplant'],
+    [/(okra)/, 'i-okra'],
+    [/(ampalaya|bitter ?(gourd|melon))/, 'i-ampalaya'],
+    [/(chili|chilli|sili|labuyo)/, 'i-chili'],
+    [/(bell ?pepper|capsicum|pepper|pimiento)/, 'i-pepper'],
+    [/(cabbage|pechay|bok ?choy|lettuce|kale|spinach|greens)/, 'i-cabbage'],
+    [/(string ?beans?|sitaw|monggo|mung|legumes?|peas?|beans?)/, 'i-beans'],
+    [/(carrot)/, 'i-carrot'],
+    [/(potato|kamote|ginger|luya|turmeric|radish|root crop)/, 'i-potato'],
+    [/(corn|maize|mais)/, 'i-corn'],
+    [/(rice|palay|bigas|pinipig)/, 'i-rice'],
+    [/(wheat|barley|oats?|grain)/, 'i-wheat'],
+    [/(banana|saging)/, 'i-banana'],
+    [/(mango)/, 'i-mango'],
+    [/(watermelon|pakwan)/, 'i-watermelon'],
+    [/(coconut|niyog|buko)/, 'i-coconut'],
+    [/(squash|pumpkin|kalabasa)/, 'i-squash'],
+    [/(papaya)/, 'i-papaya'],
+    [/(pineapple|pinya)/, 'i-pineapple'],
+    [/(onion|sibuyas)/, 'i-onion'],
+    [/(garlic|bawang)/, 'i-garlic'],
+  ];
+  const cropIcon = (name, category) => {
+    const hit = CROP_RULES.find(([re]) => re.test(String(name || '').toLowerCase()));
+    return (hit && hit[1]) || LISTING_ICON[category] || CATEGORY_ICON[category] || 'i-basket';
+  };
+  const icon = (id, cls) => `<svg${cls ? ` class="${cls}"` : ''}><use href="#${id}"/></svg>`;
+  const DEFAULT_LOC = 'Bongabong, Oriental Mindoro';
+
+  /* ---------- API ---------- */
+  async function api(path, method = 'GET', body) {
+    let res;
+    try {
+      res = await fetch('/api' + path, {
+        method,
+        credentials: 'same-origin',
+        headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+    } catch (e) {
+      throw new Error('Cannot reach the AgriTrack server. Start it, then open http://localhost:3000.');
+    }
+    let payload = null;
+    try { payload = await res.json(); } catch (e) { /* empty body */ }
+    if (!res.ok) {
+      const err = new Error((payload && payload.error) || `Request failed (${res.status}).`);
+      err.status = res.status;
+      throw err;
+    }
+    return payload;
+  }
+
+  let session = null;   // { username, name, role, farm, loc, phone }
+  let data = null;
+  let market = [];
+
+  async function reload() {
+    const boot = await api('/bootstrap');
+    session = boot.user;
+    data = boot.data;
+    market = boot.market;
+  }
+
+  /* ---------- Toast ---------- */
+  let toastTimer;
+  function toast(msg, undo) {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.toggle('has-action', !!undo);
+    if (undo) {
+      const b = document.createElement('button');
+      b.className = 'toast-undo';
+      b.textContent = 'Undo';
+      b.addEventListener('click', () => { undo(); t.classList.remove('show'); });
+      t.append(b);
+    }
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), undo ? 6000 : 2400);
+  }
+
+  /* ---------- Auth ---------- */
+  function switchAuth(which) {
+    $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.auth === which));
+    $('#login-form').hidden = which !== 'login';
+    $('#signup-form').hidden = which !== 'signup';
+  }
+  $$('.tab').forEach((t) => t.addEventListener('click', () => switchAuth(t.dataset.auth)));
+  $$('[data-switch]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); switchAuth(a.dataset.switch); }));
+
+  $('#toggle-pass').addEventListener('click', () => {
+    const p = $('#login-pass');
+    p.type = p.type === 'password' ? 'text' : 'password';
+  });
+  $('#forgot').addEventListener('click', (e) => { e.preventDefault(); toast('Password reset is not available in this demo.'); });
+  $('#login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = $('#login-error');
+    err.hidden = true;
+    try {
+      await api('/login', 'POST', {
+        username: $('#login-user').value.trim().toLowerCase(),
+        password: $('#login-pass').value,
+      });
+      await enterApp();
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.hidden = false;
+    }
+  });
+
+  $('#signup-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = $('#signup-error');
+    err.hidden = true;
+    const role = $('#signup-role').value === 'buyer' ? 'buyer' : 'farmer';
+    try {
+      await api('/signup', 'POST', {
+        name: $('#signup-name').value.trim(),
+        username: $('#signup-user').value.trim().toLowerCase(),
+        password: $('#signup-pass').value,
+        role,
+      });
+      await enterApp();
+      toast(role === 'buyer' ? 'Buyer account created. Welcome to the marketplace!' : 'Account created. Welcome to AgriTrack!');
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.hidden = false;
+    }
+  });
+
+  async function enterApp() {
+    await reload();
+    $('#auth').hidden = true;
+    $('#app').hidden = false;
+    $$('[data-user-name]').forEach((el) => (el.textContent = session.name));
+    $$('[data-avatar]').forEach((el) => (el.textContent = initials(session.name)));
+    $('#set-name').value = session.name;
+    $('#set-farm').value = session.farm;
+    $('#set-phone').value = session.phone;
+    $('#set-loc').value = session.loc;
+    $('#set-role').textContent = session.role === 'buyer' ? 'Buyer' : 'Farmer';
+    applyRole();
+    populateExpenseDates();
+    const home = session.role === 'buyer' ? 'marketplace' : 'dashboard';
+    history.replaceState(null, '', '#' + home);
+    show(home);
+    renderAll();
+  }
+
+  function applyRole() {
+    const buyer = session.role === 'buyer';
+    $$('.side-nav .nav-item').forEach((b) => { b.hidden = buyer && b.dataset.view !== 'marketplace'; });
+    $('#nav-settings').hidden = buyer;
+    $('#side-logout').hidden = !buyer;
+    $$('#bottom-nav button').forEach((b) => { b.hidden = buyer && b.dataset.view !== 'marketplace'; });
+    $('#bottom-nav').classList.toggle('cols-1', buyer);
+    $('#add-listing').hidden = buyer;
+    $('.bell').hidden = buyer;
+    $$('[data-role]').forEach((el) => (el.textContent = buyer ? 'Buyer' : 'Farmer'));
+    $('#hello-name').textContent = (session.name || 'Farmer').split(/\s+/)[0];
+  }
+
+  async function logout() {
+    try { await api('/logout', 'POST'); } catch (e) { /* ignore */ }
+    session = null;
+    data = null;
+    market = [];
+    $('#app').hidden = true;
+    $('#auth').hidden = false;
+    $('#notif').hidden = true;
+    $('#login-form').reset();
+    $('#signup-form').reset();
+    history.replaceState(null, '', '#');
+    switchAuth('login');
+  }
+  $('#logout').addEventListener('click', logout);
+  $('#side-logout').addEventListener('click', logout);
+
+  /* ---------- Navigation ---------- */
+  const TITLES = {
+    dashboard: 'Dashboard', inventory: 'Farm Inventory', expenses: 'Expense Management', marketplace: 'Crop Marketplace',
+    newlisting: 'Add New Listing', reports: 'Reports', settings: 'Settings',
+  };
+  function show(view) {
+    if (session && session.role === 'buyer' && view !== 'marketplace') view = 'marketplace';
+    $$('.view').forEach((v) => (v.hidden = v.id !== 'view-' + view));
+    const navView = view === 'newlisting' ? 'marketplace' : view;
+    $$('.nav-item, .bottom-nav button').forEach((b) => b.classList.toggle('active', b.dataset.view === navView));
+    $('#page-title').textContent = TITLES[view];
+    closeMenu();
+    if (location.hash.slice(1) !== view) history.pushState(null, '', '#' + view);
+    window.scrollTo({ top: 0 });
+    if (view === 'dashboard') renderDashboard();
+    if (view === 'reports') renderReports();
+  }
+  $$('[data-view]').forEach((b) => b.addEventListener('click', () => show(b.dataset.view)));
+
+  const openProfile = () => {
+    if (!session) return;
+    if (session.role === 'buyer') { toast('Profile settings are available on farmer accounts.'); return; }
+    show('settings');
+  };
+  $('#user-chip').addEventListener('click', openProfile);
+  $('#side-user').addEventListener('click', openProfile);
+
+  const openMenu = () => { $('#sidebar').classList.add('open'); $('#scrim').classList.add('show'); };
+  const closeMenu = () => { $('#sidebar').classList.remove('open'); $('#scrim').classList.remove('show'); };
+  $('#menu-btn').addEventListener('click', openMenu);
+  $('#scrim').addEventListener('click', closeMenu);
+
+  /* ---------- Dashboard ---------- */
+  function renderDashboard() {
+    updateBell();
+    $('#hello-name').textContent = (session.name || 'Farmer').split(/\s+/)[0];
+    $('#st-inv').textContent = `${data.inventory.length} items`;
+    $('#st-exp').textContent = peso(data.expenses.reduce((s, x) => s + x.amt, 0));
+    $('#st-list').textContent = `${market.filter((l) => l.owner === session.username && l.status === 'available').length} crops`;
+    $('#st-sales').textContent = peso(data.sales);
+    renderChart();
+    renderSales();
+    renderActivities();
+  }
+
+  function renderSales() {
+    const log = Array.isArray(data.salesLog) ? data.salesLog : [];
+    const real = log.filter((x) => !x.legacy);
+    const hasReal = real.length > 0;
+    const thisMonth = monthKey(today());
+    const monthTotal = real.filter((x) => monthKey(x.date) === thisMonth).reduce((s, x) => s + x.amt, 0);
+    const byCrop = {};
+    real.forEach((x) => { if (x.crop) byCrop[x.crop] = (byCrop[x.crop] || 0) + x.amt; });
+    const top = Object.entries(byCrop).sort((a, b) => b[1] - a[1])[0];
+    const kpis = [
+      ['Total sales', peso(data.sales), 'all time'],
+      ['This month', hasReal ? peso(monthTotal) : '—', hasReal ? monthLabel(thisMonth, true) : 'no dated sales yet'],
+      ['Orders', hasReal ? String(real.length) : '—', hasReal ? 'recorded' : 'starts with new orders'],
+      ['Top crop', top ? esc(top[0]) : '—', top ? peso(top[1]) : 'no crop data yet'],
+    ];
+    $('#sl-kpis').innerHTML = kpis.map(([label, value, sub]) =>
+      `<div class="skpi"><small>${label}</small><b>${value}</b><span>${sub}</span></div>`).join('');
+
+    const box = $('#sales-chart');
+    const totals = {};
+    const realMonths = new Set(real.map((x) => monthKey(x.date)));
+    log.forEach((x) => { totals[monthKey(x.date)] = (totals[monthKey(x.date)] || 0) + x.amt; });
+    const keys = Object.keys(totals).sort().slice(-6);
+    if (!keys.length) {
+      box.style.display = 'block';
+      box.innerHTML = '<p class="empty">No sales yet. Orders and sold listings will appear here.</p>';
+      return;
+    }
+    box.style.display = '';
+    const max = Math.max(...keys.map((k) => totals[k]));
+    const step = Math.max(Math.ceil(max / 4 / 100) * 100, 100);
+    const topVal = step * 4;
+    const ticks = [0, 1, 2, 3, 4].map((i) => `<span>${(step * i).toLocaleString()}</span>`).join('');
+    const tipFor = (k) => `${realMonths.has(k) ? monthLabel(k, true) : 'Prior sales'}: ${peso(totals[k])}`;
+    const bars = keys.map((k) =>
+      `<div class="bar-col"><div class="bar" style="height:0" data-h="${(totals[k] / topVal) * 100}" data-tip="${tipFor(k)}"></div></div>`).join('');
+    const labels = keys.map((k) => `<span>${realMonths.has(k) ? monthLabel(k) : 'Prior'}</span>`).join('');
+    box.innerHTML = `<div class="y-axis">${ticks}</div><div class="plot">${bars}</div><div class="x-axis">${labels}</div>`;
+    requestAnimationFrame(() => $$('.bar', box).forEach((b) => (b.style.height = b.dataset.h + '%')));
+  }
+
+  function renderChart() {
+    const box = $('#chart');
+    const totals = {};
+    data.expenses.forEach((x) => { totals[monthKey(x.date)] = (totals[monthKey(x.date)] || 0) + x.amt; });
+    const keys = Object.keys(totals).sort().slice(-6);
+    if (!keys.length) {
+      box.style.display = 'block';
+      box.innerHTML = '<p class="empty">No expenses yet. Add one to see your spending here.</p>';
+      return;
+    }
+    box.style.display = '';
+    const max = Math.max(...keys.map((k) => totals[k]));
+    const step = Math.max(Math.ceil(max / 4 / 500) * 500, 500);
+    const top = step * 4;
+    const ticks = [0, 1, 2, 3, 4].map((i) => `<span>${(step * i).toLocaleString()}</span>`).join('');
+    const bars = keys.map((k) =>
+      `<div class="bar-col"><div class="bar" data-month="${k}" style="height:0" data-h="${(totals[k] / top) * 100}" data-tip="${monthLabel(k, true)}: ${peso(totals[k])}"></div></div>`).join('');
+    const labels = keys.map((k) => `<span>${monthLabel(k)}</span>`).join('');
+    box.innerHTML = `<div class="y-axis">${ticks}</div><div class="plot">${bars}</div><div class="x-axis">${labels}</div>`;
+    requestAnimationFrame(() => $$('.bar', box).forEach((b) => (b.style.height = b.dataset.h + '%')));
+  }
+
+  function renderActivities() {
+    const ul = $('#activities');
+    if (!data.activities.length) { ul.innerHTML = '<li class="empty" style="display:block">Nothing yet. Your recent actions will show up here.</li>'; return; }
+    const icon = { green: 'i-leaf', orange: 'i-wallet', purple: 'i-cart' };
+    ul.innerHTML = data.activities.slice(0, 4).map((a) => `
+      <li data-go="${TYPE_VIEW[a.type] || 'dashboard'}" tabindex="0">
+        <span class="act-ic ${a.type}"><svg><use href="#${icon[a.type] || 'i-leaf'}"/></svg></span>
+        <div class="act-text">${esc(a.text)}<small>${fmtStamp(a.at)}</small></div>
+      </li>`).join('');
+  }
+
+  /* ---------- Inventory ---------- */
+  let editingItem = null;
+  function renderInventory() {
+    const q = $('#inv-search').value.trim().toLowerCase();
+    const rows = data.inventory
+      .filter((i) => !q || i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q))
+      .sort(sorter(sortState.inv));
+    $('#inv-body').innerHTML = rows.length ? rows.map((i) => `
+      <tr>
+        <td><div class="thumb ${esc(i.category)}">${icon(cropIcon(i.name, i.category))}</div></td>
+        <td>${esc(i.name)}${i.supplier ? `<small class="cell-sub">${esc(i.supplier)}</small>` : ''}</td>
+        <td>${esc(i.category)}</td>
+        <td><div class="stepper"><button data-step="-1" data-id="${i.id}" aria-label="Decrease quantity">−</button><b>${num(i.qty)}</b><button data-step="1" data-id="${i.id}" aria-label="Increase quantity">+</button></div></td>
+        <td>${esc(i.unit)}</td>
+        <td>${i.cost ? peso(i.cost) : '—'}</td>
+        <td>${i.cost ? peso(i.cost * i.qty) : '—'}</td>
+        <td>${fmtDate(i.date)}</td>
+        <td><div class="row-actions">
+          <button data-edit="${i.id}" aria-label="Edit ${esc(i.name)}"><svg><use href="#i-edit"/></svg></button>
+          <button class="del" data-del="${i.id}" aria-label="Delete ${esc(i.name)}"><svg><use href="#i-trash"/></svg></button>
+        </div></td>
+      </tr>`).join('') : '<tr><td colspan="9" class="empty">No items found. Click “Add Item” to start your inventory.</td></tr>';
+    markSort('inv', sortState.inv);
+    const totalVal = rows.reduce((s, i) => s + (i.cost || 0) * i.qty, 0);
+    $('#inv-count').textContent = rows.length
+      ? `Showing 1–${rows.length} of ${rows.length} items · Total value ${peso(totalVal)}`
+      : 'Showing 0 items';
+  }
+
+  function openItemModal(item) {
+    editingItem = item || null;
+    $('#item-title').textContent = item ? 'Edit Item' : 'Add Item';
+    $('#i-name').value = item ? item.name : '';
+    $('#i-cat').value = item ? item.category : 'Seeds';
+    $('#i-qty').value = item ? item.qty : '';
+    $('#i-unit').value = item ? item.unit : 'kg';
+    $('#i-date').value = item ? item.date : today();
+    $('#i-supplier').value = item ? (item.supplier || '') : '';
+    $('#i-cost').value = item && item.cost ? item.cost : '';
+    $('#i-logexp').checked = item ? item.logExp !== false : true;
+    $('#i-notes').value = item ? (item.notes || '') : '';
+    $('#item-modal').showModal();
+  }
+  $('#add-item').addEventListener('click', () => openItemModal());
+  $('#inv-search').addEventListener('input', renderInventory);
+
+  $('#item-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const rec = {
+      name: $('#i-name').value.trim(),
+      category: $('#i-cat').value,
+      qty: parseFloat($('#i-qty').value),
+      unit: $('#i-unit').value,
+      date: $('#i-date').value,
+      supplier: $('#i-supplier').value.trim(),
+      cost: parseFloat($('#i-cost').value) || 0,
+      logExp: $('#i-logexp').checked,
+      notes: $('#i-notes').value.trim(),
+    };
+    const editing = !!editingItem;
+    try {
+      if (editing) await api(`/inventory/${editingItem.id}`, 'PUT', rec);
+      else await api('/inventory', 'POST', rec);
+      await reload();
+      $('#item-modal').close();
+      populateExpenseDates();
+      renderAll();
+      toast(editing ? 'Item updated.' : 'Item added.');
+    } catch (ex) {
+      toast(ex.message);
+    }
+  });
+
+  $('#inv-body').addEventListener('click', async (e) => {
+    const edit = e.target.closest('[data-edit]');
+    const del = e.target.closest('[data-del]');
+    if (edit) openItemModal(data.inventory.find((i) => i.id === edit.dataset.edit));
+    if (del) {
+      try {
+        const res = await api(`/inventory/${del.dataset.del}`, 'DELETE');
+        await reload();
+        populateExpenseDates();
+        renderAll();
+        toast('Item and its linked expense deleted.', async () => {
+          try {
+            await api('/inventory', 'POST', { ...res.item, undo: true });
+            await reload();
+            populateExpenseDates();
+            renderAll();
+          } catch (ex) { toast(ex.message); }
+        });
+      } catch (ex) {
+        toast(ex.message);
+      }
+    }
+  });
+
+  /* ---------- Expenses ---------- */
+  let editingExp = null;
+  function populateExpenseDates() {
+    const sel = $('#exp-date');
+    const current = sel.value || 'all';
+    const months = [...new Set(data.expenses.map((x) => monthKey(x.date)))].sort().reverse();
+    sel.innerHTML = '<option value="all">All Dates</option>' + months.map((m) => `<option value="${m}">${monthLabel(m, true)}</option>`).join('');
+    sel.value = months.includes(current) ? current : 'all';
+  }
+
+  function renderExpSummary() {
+    const total = data.expenses.reduce((s, x) => s + x.amt, 0);
+    const cur = today().slice(0, 7);
+    const month = data.expenses.filter((x) => monthKey(x.date) === cur).reduce((s, x) => s + x.amt, 0);
+    const byCat = {};
+    data.expenses.forEach((x) => { byCat[x.cat] = (byCat[x.cat] || 0) + x.amt; });
+    const top = Object.entries(byCat).sort((a, b) => b[1] - a[1])[0];
+    $('#es-total').textContent = peso(total);
+    $('#es-month').textContent = peso(month);
+    $('#es-count').textContent = `${data.expenses.length} ${data.expenses.length === 1 ? 'entry' : 'entries'}`;
+    $('#es-top').textContent = top ? top[0] : '—';
+    $('#es-top').title = top ? peso(top[1]) : '';
+  }
+
+  function renderExpenses() {
+    renderExpSummary();
+    const d = $('#exp-date').value;
+    const c = $('#exp-cat').value;
+    const q = $('#exp-search').value.trim().toLowerCase();
+    const rows = data.expenses
+      .filter((x) => (d === 'all' || monthKey(x.date) === d) && (c === 'all' || x.cat === c) && (!q || x.desc.toLowerCase().includes(q)))
+      .sort(sorter(sortState.exp));
+    $('#exp-body').innerHTML = rows.length ? rows.map((x) => {
+      const sub = [x.itemId ? 'From inventory' : '', x.paidTo ? `Paid to ${x.paidTo}` : ''].filter(Boolean).join(' · ');
+      return `
+      <tr>
+        <td>${fmtDate(x.date)}</td>
+        <td>${esc(x.desc)}${sub ? `<small class="cell-sub">${esc(sub)}</small>` : ''}</td>
+        <td>${esc(x.cat)}</td>
+        <td>${esc(x.pay || '—')}</td>
+        <td class="r"><b>${peso(x.amt)}</b></td>
+        <td><div class="row-actions">
+          <button data-edit="${x.id}" aria-label="Edit ${esc(x.desc)}"><svg><use href="#i-edit"/></svg></button>
+          <button class="del" data-del="${x.id}" aria-label="Delete ${esc(x.desc)}"><svg><use href="#i-trash"/></svg></button>
+        </div></td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="6" class="empty">${data.expenses.length ? 'No expenses match your filters.' : 'No expenses yet. Add an inventory item with “Record total cost as an expense” checked.'}</td></tr>`;
+    markSort('exp', sortState.exp);
+    $('#exp-total').textContent = peso(rows.reduce((s, x) => s + x.amt, 0));
+  }
+
+  function updateExpNote() {
+    const total = data.expenses.reduce((s, x) => s + x.amt, 0);
+    const base = total - (editingExp ? editingExp.amt : 0);
+    const amt = parseFloat($('#e-amt').value) || 0;
+    const count = data.expenses.length;
+    $('#exp-summary').innerHTML = `All recorded expenses: <b>${peso(total)}</b> across ${count} ${count === 1 ? 'entry' : 'entries'}. After saving, the total becomes <b>${peso(base + amt)}</b>.`;
+  }
+
+  function openExpModal(exp) {
+    editingExp = exp || null;
+    $('#exp-title').textContent = exp ? 'Edit Expense' : 'Add Expense';
+    $('#e-date').value = exp ? exp.date : today();
+    $('#e-cat').value = exp ? exp.cat : 'Input';
+    $('#e-desc').value = exp ? exp.desc : '';
+    $('#e-amt').value = exp ? exp.amt : '';
+    $('#e-pay').value = exp ? (exp.pay || 'Cash') : 'Cash';
+    $('#e-paidto').value = exp ? (exp.paidTo || '') : '';
+    $('#e-notes').value = exp ? (exp.notes || '') : '';
+    updateExpNote();
+    $('#exp-modal').showModal();
+  }
+  ['#exp-date', '#exp-cat'].forEach((s) => $(s).addEventListener('change', renderExpenses));
+  $('#exp-search').addEventListener('input', renderExpenses);
+  $('#e-amt').addEventListener('input', updateExpNote);
+
+  $('#exp-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const rec = {
+      date: $('#e-date').value,
+      cat: $('#e-cat').value,
+      desc: $('#e-desc').value.trim(),
+      amt: parseFloat($('#e-amt').value),
+      pay: $('#e-pay').value,
+      paidTo: $('#e-paidto').value.trim(),
+      notes: $('#e-notes').value.trim(),
+    };
+    const editing = !!editingExp;
+    try {
+      if (editing) await api(`/expenses/${editingExp.id}`, 'PUT', rec);
+      else await api('/expenses', 'POST', rec);
+      await reload();
+      $('#exp-modal').close();
+      populateExpenseDates();
+      renderAll();
+      toast(editing ? 'Expense updated.' : 'Expense added.');
+    } catch (ex) {
+      toast(ex.message);
+    }
+  });
+
+  $('#exp-body').addEventListener('click', async (e) => {
+    const edit = e.target.closest('[data-edit]');
+    const del = e.target.closest('[data-del]');
+    if (edit) openExpModal(data.expenses.find((x) => x.id === edit.dataset.edit));
+    if (del) {
+      try {
+        const res = await api(`/expenses/${del.dataset.del}`, 'DELETE');
+        await reload();
+        populateExpenseDates();
+        renderAll();
+        toast('Expense deleted.', async () => {
+          try {
+            await api('/expenses', 'POST', { ...res.expense, undo: true });
+            await reload();
+            populateExpenseDates();
+            renderAll();
+          } catch (ex) { toast(ex.message); }
+        });
+      } catch (ex) {
+        toast(ex.message);
+      }
+    }
+  });
+
+  /* ---------- Marketplace ---------- */
+  let mkCat = 'All';
+  function renderMarketplace() {
+    const buyer = session.role === 'buyer';
+    const input = $('#mk-search');
+    const raw = input.value.trim();
+    const q = raw.toLowerCase();
+    input.placeholder = buyer ? 'Search crops or sellers...' : 'Search your listings...';
+    const source = buyer ? market.filter((l) => l.status === 'available') : market.filter((l) => l.owner === session.username);
+    const haystack = (l) => [l.name, l.category, l.farm, l.owner, l.loc, l.desc].map((v) => String(v || '').toLowerCase()).join(' ');
+    const list = source.filter((l) => {
+      if (mkCat !== 'All' && l.category !== mkCat) return false;
+      if (!q) return true;
+      const hay = haystack(l);
+      return q.split(/\s+/).every((t) => hay.includes(t));
+    });
+    $('#mk-cards').innerHTML = list.length ? list.map((l) => {
+      const style = l.photo ? ` style="background-image:url('${l.photo}')"` : '';
+      const sold = l.status === 'sold';
+      return `
+      <article class="card" data-id="${l.id}" tabindex="0">
+        <div class="card-img ${esc(l.category)}"${style}>${l.photo ? '' : icon(cropIcon(l.name, l.category))}</div>
+        <div class="card-body">
+          <b>${esc(l.name)}</b>
+          <span class="price-tag">${peso(l.price)} / ${esc(l.unit)}</span>
+          <span class="qty-left">${num(l.qty)} ${esc(l.unit)} ${sold ? 'sold' : 'available'}</span>
+          <span class="loc"><svg><use href="#i-pin"/></svg>${esc(l.loc)}</span>
+          <span class="seller">${buyer ? 'by ' : ''}${esc(l.farm || 'AgriTrack farmer')}</span>
+          <div class="card-foot">
+            <span class="badge ${sold ? 'sold' : ''}">${sold ? 'Sold' : 'Available'}</span>
+            <span>${buyer
+              ? `<a href="#" class="link" style="color:var(--green-700)" data-open="${l.id}">Order</a>`
+              : `${sold ? '' : `<a href="#" class="link" style="color:var(--green-700)" data-sold="${l.id}">Mark sold</a> · `}<a href="#" class="link" data-remove="${l.id}">Remove</a>`}</span>
+          </div>
+        </div>
+      </article>`;
+    }).join('') : `<p class="empty" style="grid-column:1/-1">${buyer
+      ? (q ? `No crops match “${esc(raw)}”. Try a different crop or seller.` : mkCat !== 'All' ? `No ${esc(mkCat.toLowerCase())} listed right now.` : 'No crops are listed right now. Check back soon.')
+      : 'No listings found. Click “Add Listing” to sell your harvest.'}</p>`;
+  }
+
+  $('#mk-chips').addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    mkCat = chip.dataset.cat;
+    $$('.chip').forEach((c) => c.classList.toggle('active', c === chip));
+    renderMarketplace();
+  });
+  $('#mk-search').addEventListener('input', renderMarketplace);
+
+  const findListing = (id) => market.find((x) => x.id === id);
+  async function markSold(l) {
+    if (!l) return;
+    try {
+      const res = await api(`/listings/${l.id}/sold`, 'POST');
+      await reload();
+      renderMarketplace();
+      renderDashboard();
+      toast(`Marked as sold: ${peso(res.total)} added to sales.`);
+    } catch (ex) {
+      toast(ex.message);
+    }
+  }
+  async function removeListing(l) {
+    if (!l) return;
+    try {
+      const res = await api(`/listings/${l.id}`, 'DELETE');
+      await reload();
+      renderMarketplace();
+      renderDashboard();
+      toast('Listing removed.', async () => {
+        try {
+          await api('/listings', 'POST', { ...res.listing, undo: true });
+          await reload();
+          renderMarketplace();
+          renderDashboard();
+        } catch (ex) { toast(ex.message); }
+      });
+    } catch (ex) {
+      toast(ex.message);
+    }
+  }
+
+  let openId = null;
+  function openListing(id) {
+    const l = findListing(id);
+    if (!l) return;
+    openId = id;
+    const buyer = session.role === 'buyer';
+    const sold = l.status === 'sold';
+    const img = $('#lm-img');
+    img.className = 'card-img ' + l.category;
+    img.style.backgroundImage = l.photo ? `url('${l.photo}')` : '';
+    img.innerHTML = l.photo ? '' : icon(cropIcon(l.name, l.category));
+    $('#lm-name').textContent = l.name;
+    $('#lm-meta').textContent = `${peso(l.price)} / ${l.unit} · ${num(l.qty)} ${l.unit} ${sold ? 'sold' : 'available'}`;
+    $('#lm-loc').textContent = l.loc;
+    $('#lm-seller').textContent = [l.farm, l.phone].filter(Boolean).join(' · ') || 'AgriTrack farmer';
+    $('#lm-desc').textContent = l.desc || 'No description added.';
+    $('#lm-order').hidden = sold;
+    $('#lm-order-text').textContent = buyer ? 'Order quantity' : 'Simulate a buyer order';
+    $('#lm-order-btn').textContent = buyer ? 'Place order' : 'Receive order';
+    $('#lm-sold').hidden = sold || buyer;
+    $('#lm-remove').hidden = buyer;
+    $('#lm-qty').max = l.qty;
+    $('#lm-qty').value = Math.min(1, l.qty);
+    const dlg = $('#listing-modal');
+    if (!dlg.open) dlg.showModal();
+  }
+
+  $('#mk-cards').addEventListener('click', (e) => {
+    const sold = e.target.closest('[data-sold]');
+    const remove = e.target.closest('[data-remove]');
+    const open = e.target.closest('[data-open]');
+    if (sold || remove || open) {
+      e.preventDefault();
+      if (sold) markSold(findListing(sold.dataset.sold));
+      else if (remove) removeListing(findListing(remove.dataset.remove));
+      else openListing(open.dataset.open);
+      return;
+    }
+    const card = e.target.closest('.card');
+    if (card) openListing(card.dataset.id);
+  });
+
+  $('#lm-order-btn').addEventListener('click', async () => {
+    const l = findListing(openId);
+    const q = parseFloat($('#lm-qty').value);
+    if (!l || !(q > 0) || q > l.qty) { toast('Enter a quantity that is available for this listing.'); return; }
+    const buyer = session.role === 'buyer';
+    try {
+      const res = await api(`/listings/${l.id}/order`, 'POST', { qty: q });
+      await reload();
+      renderMarketplace();
+      renderDashboard();
+      if (buyer) $('#listing-modal').close();
+      else openListing(openId);
+      toast(`${buyer ? 'Order placed' : 'Order received'}: ${peso(res.total)}${buyer ? '' : ' added to sales'}.`);
+    } catch (ex) {
+      toast(ex.message);
+    }
+  });
+  $('#lm-sold').addEventListener('click', () => { const l = findListing(openId); if (l) markSold(l); $('#listing-modal').close(); });
+  $('#lm-remove').addEventListener('click', () => { const l = findListing(openId); $('#listing-modal').close(); if (l) removeListing(l); });
+
+  /* ---------- New listing form ---------- */
+  let photoData = null;
+  function resetListingForm() {
+    $('#listing-form').reset();
+    $('#l-loc').value = session.loc || DEFAULT_LOC;
+    $('#l-phone').value = session.phone || '';
+    photoData = null;
+    $('#drop-text').textContent = 'Click to upload or drag and drop';
+    updatePreview();
+  }
+  function updatePreview() {
+    const cat = $('#l-cat').value;
+    const crop = $('#l-name').value;
+    const p = $('#preview');
+    if (photoData) {
+      p.style.backgroundImage = `url('${photoData}')`;
+      p.innerHTML = '';
+    } else {
+      p.style.backgroundImage = '';
+      p.innerHTML = icon(cropIcon(crop, cat));
+    }
+  }
+  $('#add-listing').addEventListener('click', () => {
+    if (session.role === 'buyer') return;
+    resetListingForm();
+    show('newlisting');
+  });
+  const backToMarket = () => show('marketplace');
+  $('#listing-back').addEventListener('click', backToMarket);
+  $('#listing-cancel').addEventListener('click', backToMarket);
+  $('#l-cat').addEventListener('change', updatePreview);
+  $('#l-name').addEventListener('input', updatePreview);
+
+  function handlePhoto(file) {
+    if (!file || !file.type.startsWith('image/')) { toast('Please choose an image file.'); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        // Shrink the photo before uploading it to the server
+        const max = 480;
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * scale);
+        c.height = Math.round(img.height * scale);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        photoData = c.toDataURL('image/jpeg', 0.8);
+        $('#drop-text').textContent = file.name;
+        updatePreview();
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  }
+  $('#l-photo').addEventListener('change', (e) => handlePhoto(e.target.files[0]));
+  const dz = $('#dropzone');
+  ['dragenter', 'dragover'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove('over'); }));
+  dz.addEventListener('drop', (e) => handlePhoto(e.dataTransfer.files[0]));
+
+  $('#listing-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (session.role === 'buyer') { toast('Only farmers can create listings.'); return; }
+    const listing = {
+      name: $('#l-name').value.trim(),
+      category: $('#l-cat').value,
+      qty: parseFloat($('#l-qty').value),
+      unit: $('#l-unit').value,
+      price: parseFloat($('#l-price').value),
+      desc: $('#l-desc').value.trim(),
+      loc: $('#l-loc').value.trim() || session.loc || DEFAULT_LOC,
+      phone: $('#l-phone').value.trim(),
+      status: 'available',
+      photo: photoData,
+    };
+    try {
+      await api('/listings', 'POST', listing);
+      await reload();
+      mkCat = 'All';
+      $$('.chip').forEach((c) => c.classList.toggle('active', c.dataset.cat === 'All'));
+      renderMarketplace();
+      renderDashboard();
+      show('marketplace');
+      toast('Listing saved.');
+    } catch (ex) {
+      toast(ex.message);
+    }
+  });
+
+  /* ---------- Reports ---------- */
+  function hbars(entries, fmt) {
+    if (!entries.length) return '<p class="empty">No data yet.</p>';
+    const max = Math.max(...entries.map((e) => e[1]));
+    return entries.map(([label, val]) => `
+      <div class="hbar-row"><span>${esc(label)}</span><div class="hbar"><i style="width:${(val / max) * 100}%"></i></div><span>${fmt(val)}</span></div>`).join('');
+  }
+  function renderReports() {
+    const byCat = {};
+    data.expenses.forEach((x) => { byCat[x.cat] = (byCat[x.cat] || 0) + x.amt; });
+    $('#rp-exp').innerHTML = hbars(Object.entries(byCat).sort((a, b) => b[1] - a[1]), peso);
+
+    const inv = {};
+    data.inventory.forEach((i) => { inv[i.category] = (inv[i.category] || 0) + 1; });
+    $('#rp-inv').innerHTML = hbars(Object.entries(inv).sort((a, b) => b[1] - a[1]), (n) => `${n} item${n > 1 ? 's' : ''}`);
+
+    const totalExp = data.expenses.reduce((s, x) => s + x.amt, 0);
+    const months = new Set(data.expenses.map((x) => monthKey(x.date))).size || 1;
+    $('#rp-summary').innerHTML = `
+      <div><dt>Total expenses</dt><dd>${peso(totalExp)}</dd></div>
+      <div><dt>Average per month</dt><dd>${peso(totalExp / months)}</dd></div>
+      <div><dt>Total sales</dt><dd>${peso(data.sales)}</dd></div>
+      <div><dt>Net (sales − expenses)</dt><dd>${peso(data.sales - totalExp)}</dd></div>`;
+  }
+
+  /* ---------- Settings ---------- */
+  $('#profile-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = $('#set-name').value.trim();
+    if (!name) return;
+    try {
+      await api('/profile', 'PUT', {
+        name,
+        farm: $('#set-farm').value.trim(),
+        phone: $('#set-phone').value.trim(),
+        loc: $('#set-loc').value.trim(),
+      });
+      await reload();
+      $$('[data-user-name]').forEach((el) => (el.textContent = session.name));
+      $$('[data-avatar]').forEach((el) => (el.textContent = initials(session.name)));
+      $('#hello-name').textContent = session.name.split(/\s+/)[0];
+      renderMarketplace();
+      renderDashboard();
+      toast('Settings saved.');
+    } catch (ex) {
+      toast(ex.message);
+    }
+  });
+  $('#reset-data').addEventListener('click', async () => {
+    if (!confirm('Reset all data in this account? This cannot be undone.')) return;
+    try {
+      await api('/reset', 'POST');
+      await reload();
+      populateExpenseDates();
+      renderAll();
+      toast('Data reset.');
+    } catch (ex) {
+      toast(ex.message);
+    }
+  });
+
+  /* ---------- Sorting ---------- */
+  const sortState = { inv: { key: 'date', dir: -1 }, exp: { key: 'date', dir: -1 } };
+  const sorter = (st) => (a, b) => {
+    const x = a[st.key], y = b[st.key];
+    return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y))) * st.dir;
+  };
+  function markSort(table, st) {
+    $$(`th[data-t="${table}"]`).forEach((th) => th.classList.remove('sorted-asc', 'sorted-desc'));
+    const th = $(`th[data-t="${table}"][data-sort="${st.key}"]`);
+    if (th) th.classList.add(st.dir === 1 ? 'sorted-asc' : 'sorted-desc');
+  }
+  document.addEventListener('click', (e) => {
+    const th = e.target.closest('th[data-sort]');
+    if (!th) return;
+    const st = sortState[th.dataset.t];
+    st.dir = st.key === th.dataset.sort ? -st.dir : 1;
+    st.key = th.dataset.sort;
+    if (th.dataset.t === 'inv') renderInventory(); else renderExpenses();
+  });
+
+  /* ---------- Quantity stepper ---------- */
+  $('#inv-body').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-step]');
+    if (!b) return;
+    const item = data.inventory.find((i) => i.id === b.dataset.id);
+    if (!item) return;
+    const qty = Math.max(0, item.qty + Number(b.dataset.step));
+    try {
+      const res = await api(`/inventory/${item.id}/qty`, 'PUT', { qty });
+      item.qty = res.qty;
+      renderInventory();
+    } catch (ex) {
+      toast(ex.message);
+    }
+  });
+
+  /* ---------- Notifications ---------- */
+  const TYPE_VIEW = { green: 'inventory', orange: 'expenses', purple: 'marketplace' };
+  const isUnread = (a) => a.at > (data.seen || '');
+  function updateBell() { $('.bell .dot').hidden = !data.activities.some(isUnread); }
+  function renderNotif() {
+    const items = data.activities.slice(0, 8).map((a) =>
+      `<li data-go="${TYPE_VIEW[a.type] || 'dashboard'}" class="${isUnread(a) ? 'unread' : ''}">${esc(a.text)}<small>${fmtStamp(a.at)}</small></li>`).join('');
+    $('#notif').innerHTML = `<div class="notif-head"><b>Notifications</b><button id="mark-read">Mark all as read</button></div>` +
+      (items ? `<ul>${items}</ul>` : '<p class="empty">No notifications yet.</p>');
+  }
+  $('#bell').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const n = $('#notif');
+    n.hidden = !n.hidden;
+    if (!n.hidden) renderNotif();
+  });
+  $('#notif').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (e.target.id === 'mark-read') {
+      try {
+        const res = await api('/notifications/seen', 'PUT');
+        data.seen = res.seen;
+        renderNotif();
+        updateBell();
+      } catch (ex) {
+        toast(ex.message);
+      }
+      return;
+    }
+    const li = e.target.closest('[data-go]');
+    if (li) { $('#notif').hidden = true; show(li.dataset.go); }
+  });
+  document.addEventListener('click', () => { $('#notif').hidden = true; });
+  $('#activities').addEventListener('click', (e) => { const li = e.target.closest('[data-go]'); if (li) show(li.dataset.go); });
+
+  /* ---------- Chart drill-down ---------- */
+  $('#chart').addEventListener('click', (e) => {
+    const bar = e.target.closest('[data-month]');
+    if (!bar) return;
+    $('#exp-cat').value = 'all';
+    $('#exp-search').value = '';
+    $('#exp-date').value = bar.dataset.month;
+    show('expenses');
+    renderExpenses();
+  });
+
+  /* ---------- CSV export ---------- */
+  function exportCsv(name, header, rows) {
+    const csv = [header, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast('Exported ' + name);
+  }
+  $('#export-inv').addEventListener('click', () => exportCsv('agritrack-inventory.csv',
+    ['Item', 'Category', 'Quantity', 'Unit', 'Supplier', 'Unit Cost', 'Total Value', 'Date Added'],
+    data.inventory.map((i) => [i.name, i.category, i.qty, i.unit, i.supplier || '', i.cost || 0, (i.cost || 0) * i.qty, i.date])));
+  $('#export-exp').addEventListener('click', () => exportCsv('agritrack-expenses.csv',
+    ['Date', 'Description', 'Category', 'Payment', 'Paid To', 'Notes', 'Amount'],
+    data.expenses.map((x) => [x.date, x.desc, x.cat, x.pay || '', x.paidTo || '', x.notes || '', x.amt])));
+
+  /* ---------- Keyboard & browser back button ---------- */
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { $('#notif').hidden = true; closeMenu(); }
+    if (e.key === '/' && !/input|textarea|select/i.test(e.target.tagName)) {
+      const box = $('.view:not([hidden]) input[type=search]');
+      if (box) { e.preventDefault(); box.focus(); }
+    }
+    if (e.key === 'Enter' && e.target.matches('.stat, .card, #activities li')) e.target.click();
+  });
+  window.addEventListener('popstate', () => {
+    const v = location.hash.slice(1);
+    if (session && TITLES[v] && v !== 'newlisting') show(v);
+  });
+
+  /* ---------- Modals ---------- */
+  $$('[data-close]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
+  $$('dialog').forEach((d) => d.addEventListener('click', (e) => { if (e.target === d) d.close(); }));
+
+  /* ---------- Boot ---------- */
+  function renderAll() {
+    renderDashboard();
+    renderInventory();
+    renderExpenses();
+    renderMarketplace();
+    updatePreview();
+  }
+
+  (async () => {
+    if (location.protocol === 'file:') {
+      const err = $('#login-error');
+      err.textContent = 'Open this app through the server: run “Start AgriTrack.bat”, then visit http://localhost:3000';
+      err.hidden = false;
+      return;
+    }
+    try {
+      const health = await api('/health');
+      if (!health.database) {
+        const err = $('#login-error');
+        err.textContent = `Database not connected: ${health.error || 'unknown error'}. Check the password in api/appsettings.json and restart the server.`;
+        err.hidden = false;
+        return;
+      }
+      await enterApp();
+    } catch (ex) {
+      if (ex.status === 401) return;
+      const err = $('#login-error');
+      err.textContent = ex.message;
+      err.hidden = false;
+    }
+  })();
+})();
+
+</script>
+</body>
+</html>

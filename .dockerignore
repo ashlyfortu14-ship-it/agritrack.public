@@ -1,0 +1,5 @@
+**/bin/
+**/obj/
+api/appsettings.json
+.git/
+*.md
