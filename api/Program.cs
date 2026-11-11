@@ -33,7 +33,27 @@ IResult DbDown() => Results.Json(new { error = "Database not connected. Put your
 
 app.MapGet("/", () => Results.File(indexPath, "text/html; charset=utf-8"));
 app.MapGet("/index.html", () => Results.File(indexPath, "text/html; charset=utf-8"));
-app.MapGet("/api/health", () => Results.Ok(new { ok = true, database = db.Ready, error = db.Error }));
+app.MapGet("/api/health", () =>
+{
+    var host = cfg["Host"] ?? "";
+    var user = cfg["User"] ?? "";
+    return Results.Ok(new
+    {
+        ok = true,
+        database = db.Ready,
+        error = db.Error,
+        detail = db.Detail,
+        target = new
+        {
+            hostSet = host.Length > 0,
+            hostSuffix = host.Length > 3 ? host[^Math.Min(host.Length, 28)..] : host,
+            port = cfg["Port"],
+            userSet = user.Length > 0,
+            userSuffix = user.Length > 6 ? user[^6..] : user,
+            name = cfg["Name"],
+        },
+    });
+});
 
 /* ---------- Auth ---------- */
 
