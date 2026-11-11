@@ -111,6 +111,13 @@ a:hover { text-decoration: underline; }
 .eye { display: grid; place-items: center; }
 .forgot { align-self: flex-end; font-size: 13px; margin-top: -6px; }
 .form-error { color: var(--red); font-size: 12.5px; }
+.form-warn {
+  grid-column: 1 / -1;
+  background: var(--orange-bg); border: 1px solid var(--orange);
+  color: var(--ink); border-radius: 10px; padding: 10px 12px;
+  font-size: 13px; line-height: 1.45;
+}
+.form-warn[hidden] { display: none; }
 .switch { text-align: center; font-size: 13px; }
 .auth-form .btn-block { padding: 15px; font-size: 15px; margin-top: 2px; }
 
@@ -953,6 +960,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
         </div>
         <div class="listing-grid">
           <form id="listing-form" class="form-grid">
+            <p class="form-warn full" id="listing-warn" role="alert" hidden></p>
             <label>Crop Name<input type="text" id="l-name" placeholder="e.g. Tomato" required></label>
             <label>Category
               <select id="l-cat" required>
@@ -1044,6 +1052,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
   <button type="button" class="modal-x" data-close aria-label="Close"><svg><use href="#i-x"/></svg></button>
   <form id="item-form" method="dialog" class="form-grid">
     <h3 class="full" id="item-title">Add Item</h3>
+    <p class="form-warn full" id="item-warn" role="alert" hidden></p>
     <label class="full">Item Name<input type="text" id="i-name" required></label>
     <label>Category
       <select id="i-cat">
@@ -1482,6 +1491,9 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
   function openItemModal(item) {
     editingItem = item || null;
     $('#item-title').textContent = item ? 'Edit Item' : 'Add Item';
+    const warn = $('#item-warn');
+    warn.hidden = true;
+    warn.textContent = '';
     $('#i-name').value = item ? item.name : '';
     $('#i-cat').value = item ? item.category : 'Seeds';
     $('#i-qty').value = item ? item.qty : '';
@@ -1498,6 +1510,8 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
 
   $('#item-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const warn = $('#item-warn');
+    warn.hidden = true;
     const rec = {
       name: $('#i-name').value.trim(),
       category: $('#i-cat').value,
@@ -1519,6 +1533,12 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
       renderAll();
       toast(editing ? 'Item updated.' : 'Item added.');
     } catch (ex) {
+      if (ex.status === 409) {
+        warn.textContent = ex.message;
+        warn.hidden = false;
+        warn.scrollIntoView({ block: 'nearest' });
+        return;
+      }
       toast(ex.message);
     }
   });
@@ -1821,6 +1841,9 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
   let photoData = null;
   function resetListingForm() {
     $('#listing-form').reset();
+    const warn = $('#listing-warn');
+    warn.hidden = true;
+    warn.textContent = '';
     $('#l-loc').value = session.loc || DEFAULT_LOC;
     $('#l-phone').value = session.phone || '';
     photoData = null;
@@ -1880,6 +1903,8 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
   $('#listing-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     if (session.role === 'buyer') { toast('Only farmers can create listings.'); return; }
+    const warn = $('#listing-warn');
+    warn.hidden = true;
     const listing = {
       name: $('#l-name').value.trim(),
       category: $('#l-cat').value,
@@ -1902,6 +1927,12 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
       show('marketplace');
       toast('Listing saved.');
     } catch (ex) {
+      if (ex.status === 409) {
+        warn.textContent = ex.message;
+        warn.hidden = false;
+        warn.scrollIntoView({ block: 'center' });
+        return;
+      }
       toast(ex.message);
     }
   });

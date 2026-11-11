@@ -189,6 +189,9 @@ app.MapPost("/api/inventory", async (HttpContext ctx, ItemBody b) =>
     if (invalid != null) return Results.Json(new { error = invalid }, statusCode: 400);
 
     await using var conn = await db.OpenAsync();
+    if (!b.Undo && await InventoryDuplicateAsync(conn, uid.Value, b, null))
+        return Results.Json(new { error = $"This “{b.Name!.Trim()}” entry already exists in your inventory with the same details. The duplicate was not saved." }, statusCode: 409);
+
     await using var tx = await conn.BeginTransactionAsync();
 
     await using (var cmd = conn.CreateCommand())
@@ -221,6 +224,9 @@ app.MapPut("/api/inventory/{id}", async (string id, HttpContext ctx, ItemBody b)
     if (invalid != null) return Results.Json(new { error = invalid }, statusCode: 400);
 
     await using var conn = await db.OpenAsync();
+    if (await InventoryDuplicateAsync(conn, uid.Value, b, itemId))
+        return Results.Json(new { error = $"Another inventory entry already has these exact details for “{b.Name!.Trim()}”. The change was not saved." }, statusCode: 409);
+
     await using var tx = await conn.BeginTransactionAsync();
 
     await using (var cmd = conn.CreateCommand())
@@ -464,6 +470,9 @@ app.MapPost("/api/listings", async (HttpContext ctx, ListingBody b) =>
     }
 
     var status = b.Status == "sold" ? "sold" : "available";
+    if (!b.Undo && await ListingDuplicateAsync(conn, uid.Value, b))
+        return Results.Json(new { error = $"Your “{b.Name!.Trim()}” listing already exists with these exact details. The duplicate was not saved." }, statusCode: 409);
+
     await using (var cmd = conn.CreateCommand())
     {
         cmd.CommandText = """
@@ -892,6 +901,65 @@ static async Task SyncItemExpenseAsync(MySqlConnection conn, MySqlTransaction tx
         del.Parameters.AddWithValue("@u", uid);
         await del.ExecuteNonQueryAsync();
     }
+}
+
+static async Task<bool> InventoryDuplicateAsync(MySqlConnection conn, long uid, ItemBody b, long? exceptId)
+{
+    await using var cmd = conn.CreateCommand();
+    cmd.CommandText = $"""
+        SELECT COUNT(*) FROM inventory_items
+        WHERE user_id = @u
+          AND LOWER(TRIM(name)) = LOWER(@n)
+          AND category = @cat
+          AND quantity = @qty
+          AND LOWER(TRIM(unit)) = LOWER(@unit)
+          AND added_date = @date
+          AND LOWER(COALESCE(TRIM(supplier), '')) = LOWER(@supplier)
+          AND unit_cost = @cost
+          AND log_expense = @logexp
+          AND LOWER(COALESCE(TRIM(notes), '')) = LOWER(@notes)
+          {(exceptId.HasValue ? "AND item_id <> @except" : "")}
+        """;
+    cmd.Parameters.AddWithValue("@u", uid);
+    cmd.Parameters.AddWithValue("@n", b.Name!.Trim());
+    cmd.Parameters.AddWithValue("@cat", b.Category);
+    cmd.Parameters.AddWithValue("@qty", Math.Round(b.Qty, 2));
+    cmd.Parameters.AddWithValue("@unit", b.Unit);
+    cmd.Parameters.AddWithValue("@date", b.Date);
+    cmd.Parameters.AddWithValue("@supplier", (b.Supplier ?? "").Trim());
+    cmd.Parameters.AddWithValue("@cost", Math.Round(b.Cost, 2));
+    cmd.Parameters.AddWithValue("@logexp", b.LogExp ? 1 : 0);
+    cmd.Parameters.AddWithValue("@notes", (b.Notes ?? "").Trim());
+    if (exceptId.HasValue) cmd.Parameters.AddWithValue("@except", exceptId.Value);
+    return Convert.ToInt64(await cmd.ExecuteScalarAsync()) > 0;
+}
+
+static async Task<bool> ListingDuplicateAsync(MySqlConnection conn, long uid, ListingBody b)
+{
+    await using var cmd = conn.CreateCommand();
+    cmd.CommandText = """
+        SELECT COUNT(*) FROM listings
+        WHERE owner_id = @u
+          AND status = 'available'
+          AND LOWER(TRIM(crop_name)) = LOWER(@n)
+          AND category = @cat
+          AND quantity = @qty
+          AND LOWER(TRIM(unit)) = LOWER(@unit)
+          AND price_per_unit = @price
+          AND LOWER(COALESCE(TRIM(description), '')) = LOWER(@desc)
+          AND LOWER(TRIM(location)) = LOWER(@loc)
+          AND LOWER(COALESCE(TRIM(contact_phone), '')) = LOWER(@phone)
+        """;
+    cmd.Parameters.AddWithValue("@u", uid);
+    cmd.Parameters.AddWithValue("@n", b.Name!.Trim());
+    cmd.Parameters.AddWithValue("@cat", b.Category);
+    cmd.Parameters.AddWithValue("@qty", Math.Round(b.Qty, 2));
+    cmd.Parameters.AddWithValue("@unit", b.Unit);
+    cmd.Parameters.AddWithValue("@price", Math.Round(b.Price, 2));
+    cmd.Parameters.AddWithValue("@desc", (b.Desc ?? "").Trim());
+    cmd.Parameters.AddWithValue("@loc", (b.Loc ?? "").Trim());
+    cmd.Parameters.AddWithValue("@phone", (b.Phone ?? "").Trim());
+    return Convert.ToInt64(await cmd.ExecuteScalarAsync()) > 0;
 }
 
 static async Task LogActivityAsync(MySqlConnection conn, MySqlTransaction? tx, long uid, string type, string text)
