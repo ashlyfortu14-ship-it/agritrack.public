@@ -217,6 +217,7 @@ a:hover { text-decoration: underline; }
 .search svg { width: 15px; height: 15px; color: var(--muted); }
 .search input { border: 0; outline: 0; background: none; flex: 1; min-width: 0; font-size: 13px; }
 .search:focus-within { border-color: var(--green-600); }
+.search.place { min-width: 190px; }
 .filters { display: flex; gap: 14px; align-items: flex-end; margin-bottom: 14px; flex-wrap: wrap; }
 .filters label:not(.search) { display: flex; flex-direction: column; font-size: 11.5px; color: var(--muted); gap: 4px; }
 .filters .grow { flex: 1; min-width: 180px; }
@@ -939,6 +940,8 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
       <div class="toolbar">
         <h3>Crop Marketplace</h3>
         <label class="search"><svg><use href="#i-search"/></svg><input type="search" id="mk-search" placeholder="Search crops..."></label>
+        <label class="search place"><svg><use href="#i-pin"/></svg><input type="search" id="mk-place" list="mk-place-list" placeholder="Filter by place..."></label>
+        <datalist id="mk-place-list"></datalist>
         <button class="btn btn-primary" id="add-listing"><svg class="btn-ic"><use href="#i-plus"/></svg>Add Listing</button>
       </div>
       <div class="chips" id="mk-chips">
@@ -1781,15 +1784,21 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     const input = $('#mk-search');
     const raw = input.value.trim();
     const q = raw.toLowerCase();
+    const placeRaw = $('#mk-place').value.trim();
+    const place = placeRaw.toLowerCase();
     input.placeholder = buyer ? 'Search crops or sellers...' : 'Search your listings...';
+    $('#mk-place').placeholder = buyer ? 'Filter by place...' : 'Filter your places...';
     const source = buyer ? market.filter((l) => l.status === 'available') : market.filter((l) => l.owner === session.username);
     const haystack = (l) => [l.name, l.category, l.farm, l.owner, l.loc, l.desc].map((v) => String(v || '').toLowerCase()).join(' ');
     const list = source.filter((l) => {
       if (mkCat !== 'All' && l.category !== mkCat) return false;
+      if (place && !String(l.loc || '').toLowerCase().includes(place)) return false;
       if (!q) return true;
       const hay = haystack(l);
       return q.split(/\s+/).every((t) => hay.includes(t));
     });
+    const places = [...new Set(source.map((l) => String(l.loc || '').trim()).filter(Boolean))].sort();
+    $('#mk-place-list').innerHTML = places.map((p) => `<option value="${esc(p)}"></option>`).join('');
     $('#mk-cards').innerHTML = list.length ? list.map((l) => {
       const style = l.photo ? ` style="background-image:url('${l.photo}')"` : '';
       const sold = l.status === 'sold';
@@ -1811,8 +1820,10 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
         </div>
       </article>`;
     }).join('') : `<p class="empty" style="grid-column:1/-1">${buyer
-      ? (q ? `No crops match “${esc(raw)}”. Try a different crop or seller.` : mkCat !== 'All' ? `No ${esc(mkCat.toLowerCase())} listed right now.` : 'No crops are listed right now. Check back soon.')
-      : 'No listings found. Click “Add Listing” to sell your harvest.'}</p>`;
+      ? (q || place
+        ? `No crops match ${place ? `place “${esc(placeRaw)}”` : ''}${place && q ? ' and ' : ''}${q ? `“${esc(raw)}”` : ''}. Try another place or crop.`
+        : mkCat !== 'All' ? `No ${esc(mkCat.toLowerCase())} listed right now.` : 'No crops are listed right now. Check back soon.')
+      : (q || place ? 'No listings match your filters.' : 'No listings found. Click “Add Listing” to sell your harvest.')}</p>`;
   }
 
   $('#mk-chips').addEventListener('click', (e) => {
@@ -1823,6 +1834,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     renderMarketplace();
   });
   $('#mk-search').addEventListener('input', renderMarketplace);
+  $('#mk-place').addEventListener('input', renderMarketplace);
 
   const findListing = (id) => market.find((x) => x.id === id);
   async function markSold(l) {
@@ -2004,6 +2016,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
       await reload();
       mkCat = 'All';
       $$('.chip').forEach((c) => c.classList.toggle('active', c.dataset.cat === 'All'));
+      $('#mk-place').value = '';
       renderMarketplace();
       renderDashboard();
       show('marketplace');
