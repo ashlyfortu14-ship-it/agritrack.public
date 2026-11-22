@@ -72,6 +72,7 @@ public sealed class Db
                     await cmd.ExecuteNonQueryAsync();
                 }
                 await MigrateInventoryCategoryAsync(conn);
+                await MigrateRecoveryColumnsAsync(conn);
                 await SeedIfEmptyAsync(conn);
             }
 
@@ -115,6 +116,29 @@ public sealed class Db
             "ALTER TABLE inventory_items MODIFY category ENUM('Seeds','Seedlings','Input','Material','Equipment','Produce') NOT NULL",
             "UPDATE inventory_items SET category = 'Material' WHERE category = 'Input'",
             "ALTER TABLE inventory_items MODIFY category ENUM('Seeds','Seedlings','Material','Equipment','Produce') NOT NULL",
+        })
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = step;
+            await cmd.ExecuteNonQueryAsync();
+        }
+    }
+
+    private static async Task MigrateRecoveryColumnsAsync(MySqlConnection conn)
+    {
+        await using (var check = conn.CreateCommand())
+        {
+            check.CommandText = """
+                SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'recovery_question'
+                """;
+            if (Convert.ToInt64(await check.ExecuteScalarAsync()) > 0) return;
+        }
+
+        foreach (var step in new[]
+        {
+            "ALTER TABLE users ADD COLUMN recovery_question VARCHAR(120) NULL",
+            "ALTER TABLE users ADD COLUMN recovery_answer_hash VARCHAR(255) NULL",
         })
         {
             await using var cmd = conn.CreateCommand();
@@ -311,6 +335,8 @@ public sealed class Db
           location VARCHAR(150) NOT NULL DEFAULT 'Bongabong, Oriental Mindoro',
           phone VARCHAR(25) NULL,
           notifications_seen_at DATETIME NULL,
+          recovery_question VARCHAR(120) NULL,
+          recovery_answer_hash VARCHAR(255) NULL,
           created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
           PRIMARY KEY (user_id),

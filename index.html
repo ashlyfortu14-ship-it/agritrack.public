@@ -1026,6 +1026,14 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
           <div class="form-actions full"><button class="btn btn-primary" type="submit">Save changes</button></div>
         </form>
         <hr>
+        <form id="security-form" class="form-grid">
+          <h4 class="full">Password recovery</h4>
+          <p class="full modal-note">If you forget your password, this question will be asked before you can set a new one. Answers are not case-sensitive.</p>
+          <label class="full">Recovery question<input type="text" id="sec-question" maxlength="120" placeholder="e.g. What is the name of your farm?" required></label>
+          <label class="full">Answer<input type="text" id="sec-answer" maxlength="100" placeholder="Write it down somewhere safe" required></label>
+          <div class="form-actions full"><button class="btn btn-primary" type="submit">Save recovery question</button></div>
+        </form>
+        <hr>
         <div class="danger">
           <div><b>Reset demo data</b><small>Restores the sample inventory, expenses and listings.</small></div>
           <button class="btn btn-danger" id="reset-data">Reset data</button>
@@ -1103,6 +1111,32 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     <div class="form-actions full">
       <button type="button" class="btn btn-ghost" data-close>Cancel</button>
       <button type="submit" class="btn btn-primary">Save expense</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="forgot-modal" class="modal">
+  <button type="button" class="modal-x" data-close aria-label="Close"><svg><use href="#i-x"/></svg></button>
+  <div id="forgot-step1" class="form-grid">
+    <h3 class="full">Reset your password</h3>
+    <p class="full modal-note">Enter your username and we will show the recovery question you saved under Settings.</p>
+    <label class="full">Username<input type="text" id="forgot-user" autocomplete="username"></label>
+    <p class="form-error full" id="forgot-error1" hidden></p>
+    <div class="form-actions full">
+      <button type="button" class="btn btn-ghost" data-close>Cancel</button>
+      <button type="button" class="btn btn-primary" id="forgot-next">Continue</button>
+    </div>
+  </div>
+  <form id="forgot-form" class="form-grid" hidden>
+    <h3 class="full">Answer your recovery question</h3>
+    <p class="full modal-note" id="forgot-question"></p>
+    <label class="full">Answer<input type="text" id="forgot-answer" autocomplete="off" placeholder="Not case-sensitive"></label>
+    <label class="full">New password<input type="password" id="forgot-pass" autocomplete="new-password" minlength="6"></label>
+    <label class="full">Confirm new password<input type="password" id="forgot-pass2" minlength="6"></label>
+    <p class="form-error full" id="forgot-error" hidden></p>
+    <div class="form-actions full">
+      <button type="button" class="btn btn-ghost" id="forgot-back">Back</button>
+      <button type="submit" class="btn btn-primary">Reset password</button>
     </div>
   </form>
 </dialog>
@@ -1255,7 +1289,53 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     const p = $('#login-pass');
     p.type = p.type === 'password' ? 'text' : 'password';
   });
-  $('#forgot').addEventListener('click', (e) => { e.preventDefault(); toast('Password reset is not available in this demo.'); });
+  const forgotModal = $('#forgot-modal');
+  function showForgotStep(step) {
+    $('#forgot-step1').hidden = step !== 1;
+    $('#forgot-form').hidden = step !== 2;
+    $('#forgot-error1').hidden = true;
+    $('#forgot-error').hidden = true;
+  }
+  $('#forgot').addEventListener('click', (e) => {
+    e.preventDefault();
+    $('#forgot-user').value = $('#login-user').value.trim();
+    $('#forgot-form').reset();
+    showForgotStep(1);
+    forgotModal.showModal();
+  });
+  $('#forgot-next').addEventListener('click', async () => {
+    const username = $('#forgot-user').value.trim();
+    const err = $('#forgot-error1');
+    if (!username) { err.textContent = 'Enter your username.'; err.hidden = false; return; }
+    try {
+      const res = await api('/forgot/question', 'POST', { username });
+      $('#forgot-question').textContent = res.question;
+      showForgotStep(2);
+      $('#forgot-answer').focus();
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.hidden = false;
+    }
+  });
+  $('#forgot-back').addEventListener('click', () => showForgotStep(1));
+  $('#forgot-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = $('#forgot-error');
+    const password = $('#forgot-pass').value;
+    if (password.length < 6) { err.textContent = 'New password must be at least 6 characters.'; err.hidden = false; return; }
+    if (password !== $('#forgot-pass2').value) { err.textContent = 'The two passwords do not match.'; err.hidden = false; return; }
+    const username = $('#forgot-user').value.trim();
+    try {
+      await api('/forgot/reset', 'POST', { username, answer: $('#forgot-answer').value.trim(), newPassword: password });
+      forgotModal.close();
+      $('#login-user').value = username;
+      $('#login-pass').value = '';
+      toast('Password updated. Log in with your new password.');
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.hidden = false;
+    }
+  });
   $('#login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const err = $('#login-error');
@@ -1303,6 +1383,8 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     $('#set-phone').value = session.phone;
     $('#set-loc').value = session.loc;
     $('#set-role').textContent = session.role === 'buyer' ? 'Buyer' : 'Farmer';
+    $('#sec-question').value = session.recoveryQuestion || '';
+    $('#sec-answer').value = '';
     applyRole();
     populateExpenseDates();
     const home = session.role === 'buyer' ? 'marketplace' : 'dashboard';
@@ -1981,6 +2063,17 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
       renderMarketplace();
       renderDashboard();
       toast('Settings saved.');
+    } catch (ex) {
+      toast(ex.message);
+    }
+  });
+  $('#security-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await api('/security', 'PUT', { question: $('#sec-question').value.trim(), answer: $('#sec-answer').value.trim() });
+      session.recoveryQuestion = $('#sec-question').value.trim();
+      $('#sec-answer').value = '';
+      toast('Recovery question saved.');
     } catch (ex) {
       toast(ex.message);
     }

@@ -28,6 +28,7 @@ var dbPass = Setting("Password") ?? "";
 var dbName = Setting("Name") ?? "agritrack";
 var db = new Db(dbHost, dbPort, dbUser, dbPass, dbName);
 var sessions = new SessionStore();
+var resetAttempts = new AttemptLimiter();
 
 await db.InitAsync();
 
@@ -146,6 +147,108 @@ app.MapGet("/api/session", async (HttpContext ctx) =>
     await using var conn = await db.OpenAsync();
     var user = await LoadUserAsync(conn, uid.Value);
     return user is null ? NotSignedIn() : Results.Ok(new { user });
+});
+
+/* ---------- Password recovery ---------- */
+
+app.MapPost("/api/forgot/question", async (ForgotQuestionBody b) =>
+{
+    if (!db.Ready) return DbDown();
+    var username = (b.Username ?? "").Trim().ToLowerInvariant();
+    if (username.Length == 0)
+        return Results.Json(new { error = "Enter your username." }, statusCode: 400);
+
+    await using var conn = await db.OpenAsync();
+    await using var cmd = conn.CreateCommand();
+    cmd.CommandText = "SELECT recovery_question FROM users WHERE username = @u";
+    cmd.Parameters.AddWithValue("@u", username);
+    var question = await cmd.ExecuteScalarAsync() as string;
+    if (question != null) return Results.Ok(new { question });
+
+    await using var exists = conn.CreateCommand();
+    exists.CommandText = "SELECT COUNT(*) FROM users WHERE username = @u";
+    exists.Parameters.AddWithValue("@u", username);
+    if (Convert.ToInt64(await exists.ExecuteScalarAsync()) == 0)
+        return Results.Json(new { error = "We could not find that username." }, statusCode: 404);
+    return Results.Json(new { error = "This account has no recovery question yet. Sign in, open Settings and set one first." }, statusCode: 409);
+});
+
+app.MapPost("/api/forgot/reset", async (ForgotResetBody b) =>
+{
+    if (!db.Ready) return DbDown();
+    var username = (b.Username ?? "").Trim().ToLowerInvariant();
+    var answer = NormalizeAnswer(b.Answer ?? "");
+    var password = b.NewPassword ?? "";
+    if (username.Length == 0) return Results.Json(new { error = "Enter your username." }, statusCode: 400);
+    if (answer.Length == 0) return Results.Json(new { error = "Enter your recovery answer." }, statusCode: 400);
+    if (password.Length < 6) return Results.Json(new { error = "New password must be at least 6 characters." }, statusCode: 400);
+    if (resetAttempts.Blocked(username))
+        return Results.Json(new { error = "Too many wrong answers. Wait 15 minutes, then try again." }, statusCode: 429);
+
+    await using var conn = await db.OpenAsync();
+    long userId;
+    string? stored;
+    await using (var sel = conn.CreateCommand())
+    {
+        sel.CommandText = "SELECT user_id, recovery_answer_hash FROM users WHERE username = @u";
+        sel.Parameters.AddWithValue("@u", username);
+        await using var r = await sel.ExecuteReaderAsync();
+        if (!await r.ReadAsync())
+            return Results.Json(new { error = "We could not find that username." }, statusCode: 404);
+        userId = r.GetInt64(r.GetOrdinal("user_id"));
+        stored = r.IsDBNull(r.GetOrdinal("recovery_answer_hash")) ? null : r.GetString(r.GetOrdinal("recovery_answer_hash"));
+    }
+    if (stored is null)
+        return Results.Json(new { error = "This account has no recovery question yet. Sign in, open Settings and set one first." }, statusCode: 409);
+    if (!Passwords.Verify(answer, stored))
+    {
+        resetAttempts.Fail(username);
+        return Results.Json(new { error = "That answer does not match. Try again." }, statusCode: 400);
+    }
+
+    resetAttempts.Clear(username);
+    await using var upd = conn.CreateCommand();
+    upd.CommandText = "UPDATE users SET password_hash = @p WHERE user_id = @u";
+    upd.Parameters.AddWithValue("@p", Passwords.Hash(password));
+    upd.Parameters.AddWithValue("@u", userId);
+    await upd.ExecuteNonQueryAsync();
+    sessions.RemoveForUser(userId);
+    return Results.Ok(new { ok = true });
+});
+
+app.MapGet("/api/security", async (HttpContext ctx) =>
+{
+    if (!db.Ready) return DbDown();
+    var uid = CurrentUid(ctx);
+    if (uid is null) return NotSignedIn();
+    await using var conn = await db.OpenAsync();
+    await using var cmd = conn.CreateCommand();
+    cmd.CommandText = "SELECT recovery_question FROM users WHERE user_id = @u";
+    cmd.Parameters.AddWithValue("@u", uid.Value);
+    var question = await cmd.ExecuteScalarAsync() as string;
+    return Results.Ok(new { question = question ?? "" });
+});
+
+app.MapPut("/api/security", async (HttpContext ctx, SecurityBody b) =>
+{
+    if (!db.Ready) return DbDown();
+    var uid = CurrentUid(ctx);
+    if (uid is null) return NotSignedIn();
+    var question = (b.Question ?? "").Trim();
+    var answer = NormalizeAnswer(b.Answer ?? "");
+    if (question.Length < 5 || question.Length > 120)
+        return Results.Json(new { error = "Recovery question must be 5-120 characters." }, statusCode: 400);
+    if (answer.Length < 2 || answer.Length > 100)
+        return Results.Json(new { error = "Recovery answer must be 2-100 characters." }, statusCode: 400);
+
+    await using var conn = await db.OpenAsync();
+    await using var cmd = conn.CreateCommand();
+    cmd.CommandText = "UPDATE users SET recovery_question = @q, recovery_answer_hash = @a WHERE user_id = @u";
+    cmd.Parameters.AddWithValue("@q", question);
+    cmd.Parameters.AddWithValue("@a", Passwords.Hash(answer));
+    cmd.Parameters.AddWithValue("@u", uid.Value);
+    await cmd.ExecuteNonQueryAsync();
+    return Results.Ok(new { ok = true });
 });
 
 /* ---------- Bootstrap ---------- */
@@ -796,6 +899,7 @@ static string Num(decimal n) => n.ToString("#,##0.##", CultureInfo.InvariantCult
 static string Peso(decimal n) => "₱" + Num(n);
 
 static bool InSet(string? value, string[] set) => value != null && Array.IndexOf(set, value) >= 0;
+static string NormalizeAnswer(string value) => Regex.Replace(value.Trim().ToLowerInvariant(), @"\s+", " ");
 static bool DateOk(string? value) =>
     value != null && DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
 
@@ -1005,7 +1109,7 @@ static async Task<UserDto?> LoadUserAsync(MySqlConnection conn, long uid)
 {
     await using var cmd = conn.CreateCommand();
     cmd.CommandText = """
-        SELECT username, full_name, role, farm_name, location, phone, notifications_seen_at
+        SELECT username, full_name, role, farm_name, location, phone, notifications_seen_at, recovery_question
         FROM users WHERE user_id = @u
         """;
     cmd.Parameters.AddWithValue("@u", uid);
@@ -1019,6 +1123,7 @@ static async Task<UserDto?> LoadUserAsync(MySqlConnection conn, long uid)
         Farm = r.IsDBNull(r.GetOrdinal("farm_name")) ? "" : r.GetString(r.GetOrdinal("farm_name")),
         Loc = r.GetString(r.GetOrdinal("location")),
         Phone = r.IsDBNull(r.GetOrdinal("phone")) ? "" : r.GetString(r.GetOrdinal("phone")),
+        RecoveryQuestion = r.IsDBNull(r.GetOrdinal("recovery_question")) ? "" : r.GetString(r.GetOrdinal("recovery_question")),
         Seen = r.IsDBNull(r.GetOrdinal("notifications_seen_at"))
             ? null
             : r.GetDateTime(r.GetOrdinal("notifications_seen_at")).ToString("yyyy-MM-ddTHH:mm:ss"),
@@ -1211,6 +1316,53 @@ public sealed class SessionStore
         if (string.IsNullOrEmpty(token)) return;
         lock (_lock) _sessions.Remove(token);
     }
+
+    public void RemoveForUser(long userId)
+    {
+        lock (_lock)
+        {
+            foreach (var token in _sessions.Where(kv => kv.Value.UserId == userId).Select(kv => kv.Key).ToList())
+                _sessions.Remove(token);
+        }
+    }
+}
+
+public sealed class AttemptLimiter
+{
+    private static readonly TimeSpan Window = TimeSpan.FromMinutes(15);
+    private const int MaxAttempts = 5;
+    private readonly Dictionary<string, (int Count, DateTime Start)> _attempts = new();
+    private readonly object _lock = new();
+
+    public bool Blocked(string key)
+    {
+        lock (_lock)
+        {
+            if (!_attempts.TryGetValue(key, out var entry)) return false;
+            if (DateTime.UtcNow - entry.Start > Window)
+            {
+                _attempts.Remove(key);
+                return false;
+            }
+            return entry.Count >= MaxAttempts;
+        }
+    }
+
+    public void Fail(string key)
+    {
+        lock (_lock)
+        {
+            if (_attempts.TryGetValue(key, out var entry) && DateTime.UtcNow - entry.Start <= Window)
+                _attempts[key] = (entry.Count + 1, entry.Start);
+            else
+                _attempts[key] = (1, DateTime.UtcNow);
+        }
+    }
+
+    public void Clear(string key)
+    {
+        lock (_lock) _attempts.Remove(key);
+    }
 }
 
 public sealed record LoginBody(string? Username, string? Password);
@@ -1224,6 +1376,9 @@ public sealed record ListingBody(string? Name, string? Category, decimal Qty, st
     string? Desc, string? Loc, string? Phone, string? Photo, string? Status, bool Undo = false);
 public sealed record OrderBody(decimal Qty);
 public sealed record ProfileBody(string? Name, string? Farm, string? Phone, string? Loc);
+public sealed record ForgotQuestionBody(string? Username);
+public sealed record ForgotResetBody(string? Username, string? Answer, string? NewPassword);
+public sealed record SecurityBody(string? Question, string? Answer);
 
 public sealed class UserDto
 {
@@ -1233,6 +1388,7 @@ public sealed class UserDto
     public string Farm { get; set; } = "";
     public string Loc { get; set; } = "";
     public string Phone { get; set; } = "";
+    public string RecoveryQuestion { get; set; } = "";
     public string? Seen { get; set; }
 }
 
