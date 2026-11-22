@@ -73,6 +73,7 @@ public sealed class Db
                 }
                 await MigrateInventoryCategoryAsync(conn);
                 await MigrateRecoveryColumnsAsync(conn);
+                await MigrateSalesBuyerAsync(conn);
                 await SeedIfEmptyAsync(conn);
             }
 
@@ -139,6 +140,29 @@ public sealed class Db
         {
             "ALTER TABLE users ADD COLUMN recovery_question VARCHAR(120) NULL",
             "ALTER TABLE users ADD COLUMN recovery_answer_hash VARCHAR(255) NULL",
+        })
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = step;
+            await cmd.ExecuteNonQueryAsync();
+        }
+    }
+
+    private static async Task MigrateSalesBuyerAsync(MySqlConnection conn)
+    {
+        await using (var check = conn.CreateCommand())
+        {
+            check.CommandText = """
+                SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sales' AND COLUMN_NAME = 'buyer_id'
+                """;
+            if (Convert.ToInt64(await check.ExecuteScalarAsync()) > 0) return;
+        }
+
+        foreach (var step in new[]
+        {
+            "ALTER TABLE sales ADD COLUMN buyer_id INT UNSIGNED NULL",
+            "ALTER TABLE sales ADD KEY idx_sale_buyer (buyer_id)",
         })
         {
             await using var cmd = conn.CreateCommand();

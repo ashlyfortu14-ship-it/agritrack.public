@@ -766,13 +766,23 @@ app.MapPost("/api/listings/{id}/order", async (string id, HttpContext ctx, Order
     else
     {
         var buyerName = await LoadUserNameAsync(conn, uid.Value, tx);
-        await InsertSaleAsync(conn, tx, ownerId, listingId, crop, b.Qty, unit, total, buyerName);
+        await InsertSaleAsync(conn, tx, ownerId, listingId, crop, b.Qty, unit, total, buyerName, uid.Value);
         await LogActivityAsync(conn, tx, ownerId, "purple",
             $"New order from {buyerName}: {Num(b.Qty)} {unit} of {crop} ({Peso(total)})");
     }
 
     await tx.CommitAsync();
     return Results.Ok(new { total, remaining, sold = remaining <= 0 });
+});
+
+app.MapGet("/api/orders", async (HttpContext ctx) =>
+{
+    if (!db.Ready) return DbDown();
+    var uid = CurrentUid(ctx);
+    if (uid is null) return NotSignedIn();
+
+    await using var conn = await db.OpenAsync();
+    return Results.Ok(await LoadBuyerOrdersAsync(conn, uid.Value));
 });
 
 /* ---------- Profile, reset, notifications ---------- */
@@ -1078,16 +1088,17 @@ static async Task LogActivityAsync(MySqlConnection conn, MySqlTransaction? tx, l
 }
 
 static async Task InsertSaleAsync(MySqlConnection conn, MySqlTransaction tx, long uid, long listingId,
-    string crop, decimal qty, string unit, decimal amount, string buyer)
+    string crop, decimal qty, string unit, decimal amount, string buyer, long? buyerId = null)
 {
     await using var cmd = conn.CreateCommand();
     cmd.Transaction = tx;
     cmd.CommandText = """
-        INSERT INTO sales (user_id, listing_id, sale_date, crop_name, quantity, unit, amount, buyer_name)
-        VALUES (@u, @listing, CURDATE(), @crop, @qty, @unit, @amount, @buyer)
+        INSERT INTO sales (user_id, listing_id, buyer_id, sale_date, crop_name, quantity, unit, amount, buyer_name)
+        VALUES (@u, @listing, @buyerId, CURDATE(), @crop, @qty, @unit, @amount, @buyer)
         """;
     cmd.Parameters.AddWithValue("@u", uid);
     cmd.Parameters.AddWithValue("@listing", listingId);
+    cmd.Parameters.AddWithValue("@buyerId", (object?)buyerId ?? DBNull.Value);
     cmd.Parameters.AddWithValue("@crop", crop);
     cmd.Parameters.AddWithValue("@qty", qty);
     cmd.Parameters.AddWithValue("@unit", unit);
@@ -1217,6 +1228,38 @@ static async Task<List<SaleDto>> LoadSalesLogAsync(MySqlConnection conn, long ui
             Amt = r.GetDecimal(r.GetOrdinal("amount")),
             Buyer = r.IsDBNull(r.GetOrdinal("buyer_name")) ? "" : r.GetString(r.GetOrdinal("buyer_name")),
             Legacy = r.GetBoolean(r.GetOrdinal("is_legacy")),
+        });
+    }
+    return list;
+}
+
+static async Task<List<BuyerOrderDto>> LoadBuyerOrdersAsync(MySqlConnection conn, long uid)
+{
+    var list = new List<BuyerOrderDto>();
+    await using var cmd = conn.CreateCommand();
+    cmd.CommandText = """
+        SELECT s.sale_id, s.sale_date, s.crop_name, s.quantity, s.unit, s.amount,
+               u.full_name, u.farm_name
+        FROM sales s
+        JOIN users u ON u.user_id = s.user_id
+        WHERE s.buyer_id = @u
+        ORDER BY s.sale_id DESC
+        LIMIT 100
+        """;
+    cmd.Parameters.AddWithValue("@u", uid);
+    await using var r = await cmd.ExecuteReaderAsync();
+    while (await r.ReadAsync())
+    {
+        list.Add(new BuyerOrderDto
+        {
+            Id = r.GetInt64(r.GetOrdinal("sale_id")).ToString(),
+            Date = r.GetDateTime(r.GetOrdinal("sale_date")).ToString("yyyy-MM-dd"),
+            Crop = r.GetString(r.GetOrdinal("crop_name")),
+            Qty = r.GetDecimal(r.GetOrdinal("quantity")),
+            Unit = r.IsDBNull(r.GetOrdinal("unit")) ? "" : r.GetString(r.GetOrdinal("unit")),
+            Amt = r.GetDecimal(r.GetOrdinal("amount")),
+            Seller = r.GetString(r.GetOrdinal("full_name")),
+            Farm = r.IsDBNull(r.GetOrdinal("farm_name")) ? "" : r.GetString(r.GetOrdinal("farm_name")),
         });
     }
     return list;
@@ -1476,6 +1519,19 @@ public sealed class SaleDto
     public decimal Amt { get; set; }
     public string Buyer { get; set; } = "";
     public bool Legacy { get; set; }
+}
+
+public sealed class BuyerOrderDto
+{
+    public string Id { get; set; } = "";
+    public string Date { get; set; } = "";
+    public string Crop { get; set; } = "";
+    public decimal Qty { get; set; }
+    public string Unit { get; set; } = "";
+    public decimal Amt { get; set; }
+    public string Seller { get; set; } = "";
+    public string Farm { get; set; } = "";
+    public string Status { get; set; } = "Completed";
 }
 
 public sealed class ActivityDto

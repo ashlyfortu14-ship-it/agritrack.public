@@ -630,6 +630,42 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
 .price-tag { font-size: 14.5px; font-weight: 700; color: var(--green-800); letter-spacing: -.3px; font-variant-numeric: tabular-nums; }
 .badge { padding: 2px 11px; letter-spacing: .02em; }
 .card-img { position: relative; }
+.btn-sm { padding: 7px 12px; font-size: 11.5px; border-radius: 9px; }
+.card-foot .btn-sm { margin-left: auto; }
+
+/* Cart & orders */
+.nav-badge {
+  margin-left: auto; min-width: 20px; padding: 1px 7px; border-radius: 99px;
+  background: #8fd8b0; color: var(--green-900); font-size: 10.5px; font-weight: 700; text-align: center;
+}
+.bottom-nav.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.cart-list { display: flex; flex-direction: column; }
+.cart-item { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.cart-item:last-child { border-bottom: 0; }
+.cart-info { flex: 1; min-width: 130px; display: flex; flex-direction: column; gap: 2px; }
+.cart-info small { color: var(--muted); font-size: 11.5px; }
+.cart-warn { color: var(--red); font-size: 11px; }
+.cart-sub { min-width: 82px; text-align: right; font-variant-numeric: tabular-nums; }
+.cart-remove { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; color: var(--muted); }
+.cart-remove:hover { background: #fdecec; color: var(--red); }
+.cart-remove svg { width: 15px; height: 15px; }
+.cart-summary {
+  display: flex; align-items: center; gap: 22px; padding-top: 16px; margin-top: 4px;
+  border-top: 1px solid var(--line); flex-wrap: wrap;
+}
+.cart-summary > div { display: flex; flex-direction: column; gap: 2px; }
+.cart-summary > div:first-child { margin-right: auto; }
+.cart-summary small { color: var(--muted); font-size: 11.5px; }
+.cart-summary b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.cart-summary .btn { margin-left: auto; }
+.orders-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+.order-card { border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 5px; }
+.order-head { display: flex; align-items: center; justify-content: space-between; }
+.order-id { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+.order-card > b { font-size: 15px; }
+.order-card p { font-size: 12.5px; }
+.order-card small { font-size: 11.5px; color: var(--muted); }
+.orders-foot { padding-top: 14px; font-size: 12px; color: var(--muted); }
 
 /* Modals, toast, notifications */
 .modal {
@@ -872,6 +908,8 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
       <button class="nav-item" data-view="expenses"><svg><use href="#i-wallet"/></svg>Expenses</button>
       <button class="nav-item" data-view="marketplace"><svg><use href="#i-cart"/></svg>Marketplace</button>
       <button class="nav-item" data-view="reports"><svg><use href="#i-chart"/></svg>Reports</button>
+      <button class="nav-item" data-view="cart" hidden><svg><use href="#i-cart"/></svg>Shopping Cart<b class="nav-badge" id="nav-cart-count" hidden>0</b></button>
+      <button class="nav-item" data-view="orders" hidden><svg><use href="#i-box"/></svg>My Orders</button>
     </nav>
     <div class="side-foot">
       <button class="nav-item" id="nav-settings" data-view="settings"><svg><use href="#i-gear"/></svg>Settings</button>
@@ -992,6 +1030,34 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
       <div class="cards" id="mk-cards"></div>
     </section>
 
+    <!-- SHOPPING CART -->
+    <section class="view" id="view-cart" hidden>
+      <div class="toolbar">
+        <h3>Shopping Cart</h3>
+        <button class="btn btn-ghost" id="cart-clear" type="button"><svg class="btn-ic"><use href="#i-trash"/></svg>Clear cart</button>
+      </div>
+      <div class="panel">
+        <div class="cart-list" id="cart-items"></div>
+        <div class="cart-summary">
+          <div><small>Items</small><b id="cart-count-label">0 items</b></div>
+          <div><small>Total</small><b id="cart-total">₱0</b></div>
+          <button class="btn btn-primary" id="checkout-btn" type="button">Check-out</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- MY ORDERS -->
+    <section class="view" id="view-orders" hidden>
+      <div class="toolbar">
+        <h3>My Orders</h3>
+        <button class="btn btn-outline" id="orders-refresh" type="button">Refresh</button>
+      </div>
+      <div class="panel">
+        <div class="orders-list" id="orders-list"></div>
+        <div class="orders-foot" id="orders-foot"><span id="orders-count"></span></div>
+      </div>
+    </section>
+
     <!-- ADD LISTING -->
     <section class="view" id="view-newlisting" hidden>
       <div class="panel listing-panel">
@@ -1101,6 +1167,8 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     <button data-view="inventory"><svg><use href="#i-box"/></svg>Inventory</button>
     <button data-view="expenses"><svg><use href="#i-wallet"/></svg>Expenses</button>
     <button data-view="marketplace"><svg><use href="#i-cart"/></svg>Marketplace</button>
+    <button data-view="cart" hidden><svg><use href="#i-cart"/></svg>Cart</button>
+    <button data-view="orders" hidden><svg><use href="#i-box"/></svg>Orders</button>
   </nav>
 </div>
 
@@ -1207,6 +1275,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
   </div>
   <div class="form-actions">
     <button class="btn btn-danger" id="lm-remove" type="button">Remove</button>
+    <button class="btn btn-outline" id="lm-checkout" type="button" hidden>Check-out</button>
     <button class="btn btn-primary" id="lm-sold" type="button">Mark sold</button>
     <button class="btn btn-ghost" type="button" data-close>Close</button>
   </div>
@@ -1300,6 +1369,32 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
   let session = null;   // { username, name, role, farm, loc, phone }
   let data = null;
   let market = [];
+  let cart = [];
+  let buyerOrders = [];
+
+  const cartKey = () => 'agritrack-cart:' + (session ? session.username : 'guest');
+  function loadCart() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(cartKey()) || '[]');
+      cart = Array.isArray(saved)
+        ? saved.filter((c) => c && c.id && Number(c.qty) > 0).map((c) => ({ id: String(c.id), qty: Number(c.qty) }))
+        : [];
+    } catch (e) {
+      cart = [];
+    }
+    updateCartBadge();
+  }
+  function saveCart() {
+    try { localStorage.setItem(cartKey(), JSON.stringify(cart)); } catch (e) { /* ignore */ }
+    updateCartBadge();
+  }
+  function updateCartBadge() {
+    const badge = $('#nav-cart-count');
+    if (!badge) return;
+    const n = session && session.role === 'buyer' ? cart.length : 0;
+    badge.textContent = n;
+    badge.hidden = n === 0;
+  }
 
   async function reload() {
     const boot = await api('/bootstrap');
@@ -1424,6 +1519,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
 
   async function enterApp() {
     await reload();
+    loadCart();
     $('#auth').hidden = true;
     $('#app').hidden = false;
     $$('[data-user-name]').forEach((el) => (el.textContent = session.name));
@@ -1445,15 +1541,18 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
 
   function applyRole() {
     const buyer = session.role === 'buyer';
-    $$('.side-nav .nav-item').forEach((b) => { b.hidden = buyer && b.dataset.view !== 'marketplace'; });
+    const buyerViews = ['marketplace', 'cart', 'orders'];
+    const visible = (v) => (buyer ? buyerViews.includes(v) : v !== 'cart' && v !== 'orders');
+    $$('.side-nav .nav-item').forEach((b) => { b.hidden = !visible(b.dataset.view); });
     $('#side-logout').hidden = !buyer;
     $('#reset-data-card').hidden = buyer;
-    $$('#bottom-nav button').forEach((b) => { b.hidden = buyer && b.dataset.view !== 'marketplace'; });
-    $('#bottom-nav').classList.toggle('cols-1', buyer);
+    $$('#bottom-nav button').forEach((b) => { b.hidden = !visible(b.dataset.view); });
+    $('#bottom-nav').classList.toggle('cols-3', buyer);
     $('#add-listing').hidden = buyer;
     $('.bell').hidden = buyer;
     $$('[data-role]').forEach((el) => (el.textContent = buyer ? 'Buyer' : 'Farmer'));
     $('#hello-name').textContent = (session.name || 'Farmer').split(/\s+/)[0];
+    updateCartBadge();
   }
 
   async function logout() {
@@ -1461,6 +1560,8 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     session = null;
     data = null;
     market = [];
+    cart = [];
+    buyerOrders = [];
     $('#app').hidden = true;
     $('#auth').hidden = false;
     $('#notif').hidden = true;
@@ -1475,10 +1576,11 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
   /* ---------- Navigation ---------- */
   const TITLES = {
     dashboard: 'Dashboard', inventory: 'Farm Inventory', expenses: 'Expense Management', marketplace: 'Crop Marketplace',
-    newlisting: 'Add New Listing', reports: 'Reports', settings: 'Settings',
+    newlisting: 'Add New Listing', reports: 'Reports', settings: 'Settings', cart: 'Shopping Cart', orders: 'My Orders',
   };
   function show(view) {
-    if (session && session.role === 'buyer' && view !== 'marketplace' && view !== 'settings') view = 'marketplace';
+    const buyerViews = ['marketplace', 'settings', 'cart', 'orders'];
+    if (session && session.role === 'buyer' && !buyerViews.includes(view)) view = 'marketplace';
     $$('.view').forEach((v) => (v.hidden = v.id !== 'view-' + view));
     const navView = view === 'newlisting' ? 'marketplace' : view;
     $$('.nav-item, .bottom-nav button').forEach((b) => b.classList.toggle('active', b.dataset.view === navView));
@@ -1488,6 +1590,8 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     window.scrollTo({ top: 0 });
     if (view === 'dashboard') renderDashboard();
     if (view === 'reports') renderReports();
+    if (view === 'cart') renderCart();
+    if (view === 'orders') renderOrders();
   }
   $$('[data-view]').forEach((b) => b.addEventListener('click', () => show(b.dataset.view)));
 
@@ -1877,7 +1981,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
           <div class="card-foot">
             <span class="badge ${sold ? 'sold' : ''}">${sold ? 'Sold' : 'Available'}</span>
             <span>${buyer
-              ? `<a href="#" class="link" style="color:var(--green-700)" data-open="${l.id}">Order</a>`
+              ? (sold ? '' : `<button class="btn btn-sm btn-primary" type="button" data-add="${l.id}">Add to cart</button>`)
               : `${sold ? '' : `<a href="#" class="link" style="color:var(--green-700)" data-sold="${l.id}">Mark sold</a> · `}<a href="#" class="link" data-remove="${l.id}">Remove</a>`}</span>
           </div>
         </div>
@@ -1949,8 +2053,9 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     $('#lm-seller').textContent = [l.farm, l.phone].filter(Boolean).join(' · ') || 'AgriTrack farmer';
     $('#lm-desc').textContent = l.desc || 'No description added.';
     $('#lm-order').hidden = sold;
-    $('#lm-order-text').textContent = buyer ? 'Order quantity' : 'Simulate a buyer order';
-    $('#lm-order-btn').textContent = buyer ? 'Place order' : 'Receive order';
+    $('#lm-order-text').textContent = buyer ? 'Quantity' : 'Simulate a buyer order';
+    $('#lm-order-btn').textContent = buyer ? 'Add to cart' : 'Receive order';
+    $('#lm-checkout').hidden = sold || !buyer;
     $('#lm-sold').hidden = sold || buyer;
     $('#lm-remove').hidden = buyer;
     $('#lm-qty').max = l.qty;
@@ -1963,10 +2068,12 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     const sold = e.target.closest('[data-sold]');
     const remove = e.target.closest('[data-remove]');
     const open = e.target.closest('[data-open]');
-    if (sold || remove || open) {
+    const add = e.target.closest('[data-add]');
+    if (sold || remove || open || add) {
       e.preventDefault();
       if (sold) markSold(findListing(sold.dataset.sold));
       else if (remove) removeListing(findListing(remove.dataset.remove));
+      else if (add) addToCart(add.dataset.add, 1);
       else openListing(open.dataset.open);
       return;
     }
@@ -1979,20 +2086,205 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     const q = parseFloat($('#lm-qty').value);
     if (!l || !(q > 0) || q > l.qty) { toast('Enter a quantity that is available for this listing.'); return; }
     const buyer = session.role === 'buyer';
+    if (buyer) {
+      if (addToCart(l.id, q)) $('#listing-modal').close();
+      return;
+    }
     try {
       const res = await api(`/listings/${l.id}/order`, 'POST', { qty: q });
       await reload();
       renderMarketplace();
       renderDashboard();
-      if (buyer) $('#listing-modal').close();
-      else openListing(openId);
-      toast(`${buyer ? 'Order placed' : 'Order received'}: ${peso(res.total)}${buyer ? '' : ' added to sales'}.`);
+      openListing(openId);
+      toast(`Order received: ${peso(res.total)} added to sales.`);
     } catch (ex) {
       toast(ex.message);
     }
   });
+  $('#lm-checkout').addEventListener('click', () => {
+    const l = findListing(openId);
+    const q = parseFloat($('#lm-qty').value);
+    if (!l || !(q > 0) || q > l.qty) { toast('Enter a quantity that is available for this listing.'); return; }
+    if (!addToCart(l.id, q)) return;
+    $('#listing-modal').close();
+    show('cart');
+  });
   $('#lm-sold').addEventListener('click', () => { const l = findListing(openId); if (l) markSold(l); $('#listing-modal').close(); });
   $('#lm-remove').addEventListener('click', () => { const l = findListing(openId); $('#listing-modal').close(); if (l) removeListing(l); });
+
+  /* ---------- Shopping cart ---------- */
+  function addToCart(id, qty) {
+    const l = findListing(id);
+    if (!l || l.status !== 'available') { toast('This listing is no longer available.'); return false; }
+    const amount = Number(qty);
+    if (!(amount > 0)) { toast('Enter a quantity greater than 0.'); return false; }
+    const line = cart.find((c) => c.id === id);
+    const before = line ? line.qty : 0;
+    if (before + amount > l.qty) { toast(`Only ${num(l.qty)} ${l.unit} of ${l.name} available.`); return false; }
+    if (line) line.qty = before + amount;
+    else cart.push({ id, qty: amount });
+    saveCart();
+    renderCart();
+    toast(`Added ${num(amount)} ${l.unit} of ${l.name} to cart.`, () => {
+      const now = cart.find((c) => c.id === id);
+      if (!now) return;
+      if (before > 0) now.qty = before;
+      else cart = cart.filter((c) => c.id !== id);
+      saveCart();
+      renderCart();
+    });
+    return true;
+  }
+
+  function cartLines() {
+    return cart.map((c) => ({ id: c.id, qty: c.qty, l: findListing(c.id) }));
+  }
+
+  function renderCart() {
+    const box = $('#cart-items');
+    if (!box) return;
+    const lines = cartLines();
+    if (!lines.length) {
+      box.innerHTML = '<p class="empty">Your cart is empty. Add crops from the Marketplace.</p>';
+      $('#cart-total').textContent = peso(0);
+      $('#cart-count-label').textContent = '0 items';
+      $('#checkout-btn').disabled = true;
+      $('#cart-clear').disabled = true;
+      updateCartBadge();
+      return;
+    }
+    box.innerHTML = lines.map((x) => {
+      const l = x.l;
+      const available = !!l && l.status === 'available';
+      const tooMany = available && x.qty > l.qty;
+      const sub = available ? l.price * Math.min(x.qty, l.qty) : 0;
+      return `
+      <div class="cart-item">
+        ${l ? `<div class="thumb ${esc(l.category)}">${icon(cropIcon(l.name, l.category))}</div>` : '<div class="thumb"></div>'}
+        <div class="cart-info">
+          <b>${l ? esc(l.name) : 'Unavailable item'}</b>
+          <small>${l ? `${esc(l.farm || 'AgriTrack farmer')} · ${peso(l.price)} / ${esc(l.unit)}` : 'This listing is no longer available.'}</small>
+          ${available && tooMany ? `<span class="cart-warn">Only ${num(l.qty)} ${esc(l.unit)} left</span>` : ''}
+          ${!available ? '<span class="cart-warn">Sold out</span>' : ''}
+        </div>
+        <div class="stepper">
+          <button type="button" data-cart-dec="${x.id}" aria-label="Decrease quantity">−</button>
+          <b>${num(x.qty)}</b>
+          <button type="button" data-cart-inc="${x.id}" aria-label="Increase quantity">+</button>
+        </div>
+        <b class="cart-sub">${peso(sub)}</b>
+        <button type="button" class="cart-remove" data-cart-remove="${x.id}" aria-label="Remove from cart"><svg><use href="#i-trash"/></svg></button>
+      </div>`;
+    }).join('');
+    const usable = lines.filter((x) => x.l && x.l.status === 'available' && x.qty <= x.l.qty);
+    $('#cart-total').textContent = peso(usable.reduce((s, x) => s + x.l.price * x.qty, 0));
+    $('#cart-count-label').textContent = `${lines.length} item${lines.length === 1 ? '' : 's'}`;
+    $('#checkout-btn').disabled = !usable.length;
+    $('#cart-clear').disabled = false;
+    updateCartBadge();
+  }
+
+  $('#cart-items').addEventListener('click', (e) => {
+    const dec = e.target.closest('[data-cart-dec]');
+    const inc = e.target.closest('[data-cart-inc]');
+    const rm = e.target.closest('[data-cart-remove]');
+    const id = dec ? dec.dataset.cartDec : inc ? inc.dataset.cartInc : rm ? rm.dataset.cartRemove : null;
+    if (!id) return;
+    const line = cart.find((c) => c.id === id);
+    if (!line) return;
+    if (rm) {
+      cart = cart.filter((c) => c.id !== id);
+    } else if (dec) {
+      line.qty = Math.max(1, line.qty - 1);
+    } else {
+      const l = findListing(id);
+      if (l && line.qty >= l.qty) { toast(`Only ${num(l.qty)} ${l.unit} available.`); return; }
+      line.qty += 1;
+    }
+    saveCart();
+    renderCart();
+  });
+
+  $('#cart-clear').addEventListener('click', () => {
+    if (!cart.length) return;
+    cart = [];
+    saveCart();
+    renderCart();
+    toast('Cart cleared.');
+  });
+
+  async function checkout() {
+    const lines = cartLines().filter((x) => x.l && x.l.status === 'available');
+    if (!lines.length) { toast('Your cart is empty.'); return; }
+    const btn = $('#checkout-btn');
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Placing order...';
+    let placed = 0;
+    let spent = 0;
+    const failed = [];
+    for (const line of lines) {
+      if (line.qty > line.l.qty) {
+        failed.push(`${line.l.name}: only ${num(line.l.qty)} ${line.l.unit} left`);
+        continue;
+      }
+      try {
+        const res = await api(`/listings/${line.id}/order`, 'POST', { qty: line.qty });
+        placed += 1;
+        spent += Number(res.total) || 0;
+        cart = cart.filter((c) => c.id !== line.id);
+        saveCart();
+      } catch (ex) {
+        failed.push(`${line.l.name}: ${ex.message}`);
+      }
+    }
+    btn.textContent = label;
+    try {
+      await reload();
+    } catch (ex) {
+      toast(ex.message);
+      btn.disabled = false;
+      return;
+    }
+    renderAll();
+    if (placed) {
+      show('orders');
+      toast(failed.length
+        ? `${placed} order${placed === 1 ? '' : 's'} placed (${peso(spent)}). ${failed.length} item${failed.length === 1 ? '' : 's'} could not be ordered.`
+        : `Order placed: ${peso(spent)}. Thank you!`);
+    } else {
+      btn.disabled = false;
+      renderCart();
+      toast(failed[0] || 'Could not place the order.');
+    }
+  }
+  $('#checkout-btn').addEventListener('click', checkout);
+
+  /* ---------- My orders ---------- */
+  async function renderOrders() {
+    const box = $('#orders-list');
+    if (!box) return;
+    if (!session || session.role !== 'buyer') { box.innerHTML = ''; $('#orders-count').textContent = ''; return; }
+    box.innerHTML = '<p class="empty">Loading orders...</p>';
+    try {
+      buyerOrders = await api('/orders');
+    } catch (ex) {
+      box.innerHTML = `<p class="empty">${esc(ex.message)}</p>`;
+      $('#orders-count').textContent = '';
+      return;
+    }
+    box.innerHTML = buyerOrders.length ? buyerOrders.map((o) => `
+      <article class="order-card">
+        <div class="order-head"><span class="order-id">Order #${esc(o.id)}</span><span class="badge">${esc(o.status || 'Completed')}</span></div>
+        <b>${esc(o.crop)}</b>
+        <p>${num(o.qty)} ${esc(o.unit)} · ${peso(o.amt)}</p>
+        <small>${esc(o.farm || o.seller || 'AgriTrack farmer')} · ${fmtDate(o.date)}</small>
+      </article>`).join('')
+      : '<p class="empty">No orders yet. Add crops to your cart and check out to place your first order.</p>';
+    $('#orders-count').textContent = buyerOrders.length
+      ? `${buyerOrders.length} order${buyerOrders.length === 1 ? '' : 's'} found` : '';
+  }
+  $('#orders-refresh').addEventListener('click', renderOrders);
 
   /* ---------- New listing form ---------- */
   let photoData = null;
@@ -2320,6 +2612,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     renderInventory();
     renderExpenses();
     renderMarketplace();
+    renderCart();
     updatePreview();
   }
 
