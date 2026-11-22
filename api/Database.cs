@@ -74,6 +74,7 @@ public sealed class Db
                 await MigrateInventoryCategoryAsync(conn);
                 await MigrateRecoveryColumnsAsync(conn);
                 await MigrateSalesBuyerAsync(conn);
+                await MigrateSalesDeliveryAsync(conn);
                 await SeedIfEmptyAsync(conn);
             }
 
@@ -163,6 +164,30 @@ public sealed class Db
         {
             "ALTER TABLE sales ADD COLUMN buyer_id INT UNSIGNED NULL",
             "ALTER TABLE sales ADD KEY idx_sale_buyer (buyer_id)",
+        })
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = step;
+            await cmd.ExecuteNonQueryAsync();
+        }
+    }
+
+    private static async Task MigrateSalesDeliveryAsync(MySqlConnection conn)
+    {
+        await using (var check = conn.CreateCommand())
+        {
+            check.CommandText = """
+                SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sales' AND COLUMN_NAME = 'delivery_status'
+                """;
+            if (Convert.ToInt64(await check.ExecuteScalarAsync()) > 0) return;
+        }
+
+        foreach (var step in new[]
+        {
+            "ALTER TABLE sales ADD COLUMN delivery_status VARCHAR(20) NOT NULL DEFAULT 'Pending'",
+            "ALTER TABLE sales ADD COLUMN delivery_date DATE NULL",
+            "ALTER TABLE sales ADD COLUMN delivery_address VARCHAR(255) NULL",
         })
         {
             await using var cmd = conn.CreateCommand();

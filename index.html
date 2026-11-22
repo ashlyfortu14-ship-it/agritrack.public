@@ -667,6 +667,27 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
 .order-card small { font-size: 11.5px; color: var(--muted); }
 .orders-foot { padding-top: 14px; font-size: 12px; color: var(--muted); }
 
+/* Purchases (farmer delivery tracking) */
+.badge.pending { color: #9a6400; background: var(--orange-bg); border-color: #efd9ab; }
+.badge.transit { color: #1d6fa3; background: var(--blue-bg); border-color: #b9dcf4; }
+.badge.done { color: var(--green-700); background: var(--green-50); border-color: #b7dcc6; }
+.badge.cancelled { color: var(--red); background: #fdecec; border-color: #f3c9c9; }
+.purch-list { display: flex; flex-direction: column; gap: 14px; }
+.purch-card { border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+.purch-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.purch-head > div { display: flex; flex-direction: column; gap: 2px; }
+.purch-head b { font-size: 15px; }
+.purch-qty { font-size: 13px; color: var(--green-800); font-weight: 600; font-variant-numeric: tabular-nums; }
+.purch-buyer { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.purch-buyer svg { width: 14px; height: 14px; flex: none; }
+.purch-grid { display: grid; grid-template-columns: minmax(160px, 2fr) minmax(130px, 1fr) minmax(130px, 1fr) auto; gap: 10px; align-items: end; margin-top: 6px; }
+.purch-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--muted); font-weight: 600; }
+.purch-grid input, .purch-grid select { padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line); font: inherit; font-size: 12.5px; color: var(--ink); background: #fff; }
+.purch-grid .btn { height: 35px; }
+@media (max-width: 720px) { .purch-grid { grid-template-columns: 1fr 1fr; } .purch-grid .btn { grid-column: 1 / -1; justify-self: start; } }
+.bottom-nav.cols-5 { grid-template-columns: repeat(5, 1fr); }
+.bottom-nav.cols-5 button { font-size: 10px; }
+
 /* Modals, toast, notifications */
 .modal {
   padding: 24px 24px 20px; border: 1px solid rgba(255, 255, 255, .6);
@@ -907,6 +928,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
       <button class="nav-item" data-view="inventory"><svg><use href="#i-box"/></svg>Inventory</button>
       <button class="nav-item" data-view="expenses"><svg><use href="#i-wallet"/></svg>Expenses</button>
       <button class="nav-item" data-view="marketplace"><svg><use href="#i-cart"/></svg>Marketplace</button>
+      <button class="nav-item" data-view="purchases" hidden><svg><use href="#i-pin"/></svg>Purchases<b class="nav-badge" id="nav-purch-count" hidden>0</b></button>
       <button class="nav-item" data-view="reports"><svg><use href="#i-chart"/></svg>Reports</button>
       <button class="nav-item" data-view="cart" hidden><svg><use href="#i-cart"/></svg>Shopping Cart<b class="nav-badge" id="nav-cart-count" hidden>0</b></button>
       <button class="nav-item" data-view="orders" hidden><svg><use href="#i-box"/></svg>My Orders</button>
@@ -1058,6 +1080,18 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
       </div>
     </section>
 
+    <!-- PURCHASES (farmer: buyer orders to deliver) -->
+    <section class="view" id="view-purchases" hidden>
+      <div class="toolbar">
+        <h3>Purchases</h3>
+        <button class="btn btn-outline" id="purch-refresh" type="button">Refresh</button>
+      </div>
+      <div class="panel">
+        <div class="purch-list" id="purch-list"></div>
+        <div class="orders-foot" id="purch-foot"><span id="purch-count"></span></div>
+      </div>
+    </section>
+
     <!-- ADD LISTING -->
     <section class="view" id="view-newlisting" hidden>
       <div class="panel listing-panel">
@@ -1167,6 +1201,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     <button data-view="inventory"><svg><use href="#i-box"/></svg>Inventory</button>
     <button data-view="expenses"><svg><use href="#i-wallet"/></svg>Expenses</button>
     <button data-view="marketplace"><svg><use href="#i-cart"/></svg>Marketplace</button>
+    <button data-view="purchases" hidden><svg><use href="#i-pin"/></svg>Purchases</button>
     <button data-view="cart" hidden><svg><use href="#i-cart"/></svg>Cart</button>
     <button data-view="orders" hidden><svg><use href="#i-box"/></svg>Orders</button>
   </nav>
@@ -1371,6 +1406,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
   let market = [];
   let cart = [];
   let buyerOrders = [];
+  let purchases = [];
 
   const cartKey = () => 'agritrack-cart:' + (session ? session.username : 'guest');
   function loadCart() {
@@ -1392,6 +1428,14 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     const badge = $('#nav-cart-count');
     if (!badge) return;
     const n = session && session.role === 'buyer' ? cart.length : 0;
+    badge.textContent = n;
+    badge.hidden = n === 0;
+  }
+  function updatePurchBadge() {
+    const badge = $('#nav-purch-count');
+    if (!badge) return;
+    const open = purchases.filter((p) => p.status !== 'Delivered' && p.status !== 'Cancelled').length;
+    const n = session && session.role !== 'buyer' ? open : 0;
     badge.textContent = n;
     badge.hidden = n === 0;
   }
@@ -1520,6 +1564,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
   async function enterApp() {
     await reload();
     loadCart();
+    if (session.role !== 'buyer') loadPurchases().catch(() => {});
     $('#auth').hidden = true;
     $('#app').hidden = false;
     $$('[data-user-name]').forEach((el) => (el.textContent = session.name));
@@ -1548,11 +1593,13 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     $('#reset-data-card').hidden = buyer;
     $$('#bottom-nav button').forEach((b) => { b.hidden = !visible(b.dataset.view); });
     $('#bottom-nav').classList.toggle('cols-3', buyer);
+    $('#bottom-nav').classList.toggle('cols-5', !buyer);
     $('#add-listing').hidden = buyer;
     $('.bell').hidden = buyer;
     $$('[data-role]').forEach((el) => (el.textContent = buyer ? 'Buyer' : 'Farmer'));
     $('#hello-name').textContent = (session.name || 'Farmer').split(/\s+/)[0];
     updateCartBadge();
+    updatePurchBadge();
   }
 
   async function logout() {
@@ -1562,6 +1609,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     market = [];
     cart = [];
     buyerOrders = [];
+    purchases = [];
     $('#app').hidden = true;
     $('#auth').hidden = false;
     $('#notif').hidden = true;
@@ -1576,7 +1624,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
   /* ---------- Navigation ---------- */
   const TITLES = {
     dashboard: 'Dashboard', inventory: 'Farm Inventory', expenses: 'Expense Management', marketplace: 'Crop Marketplace',
-    newlisting: 'Add New Listing', reports: 'Reports', settings: 'Settings', cart: 'Shopping Cart', orders: 'My Orders',
+    newlisting: 'Add New Listing', reports: 'Reports', settings: 'Settings', cart: 'Shopping Cart', orders: 'My Orders', purchases: 'Purchases',
   };
   function show(view) {
     const buyerViews = ['marketplace', 'settings', 'cart', 'orders'];
@@ -1592,6 +1640,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     if (view === 'reports') renderReports();
     if (view === 'cart') renderCart();
     if (view === 'orders') renderOrders();
+    if (view === 'purchases') renderPurchases();
   }
   $$('[data-view]').forEach((b) => b.addEventListener('click', () => show(b.dataset.view)));
 
@@ -2275,16 +2324,96 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     }
     box.innerHTML = buyerOrders.length ? buyerOrders.map((o) => `
       <article class="order-card">
-        <div class="order-head"><span class="order-id">Order #${esc(o.id)}</span><span class="badge">${esc(o.status || 'Completed')}</span></div>
+        <div class="order-head"><span class="order-id">Order #${esc(o.id)}</span><span class="badge ${statusClass(o.status)}">${esc(o.status || 'Pending')}</span></div>
         <b>${esc(o.crop)}</b>
         <p>${num(o.qty)} ${esc(o.unit)} · ${peso(o.amt)}</p>
         <small>${esc(o.farm || o.seller || 'AgriTrack farmer')} · ${fmtDate(o.date)}</small>
+        ${o.deliveryDate || o.deliveryAddress
+          ? `<small>${o.deliveryDate ? `Deliver ${fmtDate(o.deliveryDate)}` : 'Delivery'}${o.deliveryAddress ? ` · ${esc(o.deliveryAddress)}` : ''}</small>`
+          : ''}
       </article>`).join('')
       : '<p class="empty">No orders yet. Add crops to your cart and check out to place your first order.</p>';
     $('#orders-count').textContent = buyerOrders.length
       ? `${buyerOrders.length} order${buyerOrders.length === 1 ? '' : 's'} found` : '';
   }
   $('#orders-refresh').addEventListener('click', renderOrders);
+
+  /* ---------- Purchases (farmer: buyer orders to deliver) ---------- */
+  const DELIVERY_STATUSES = ['Pending', 'Out for delivery', 'Delivered', 'Cancelled'];
+  const statusClass = (s) => (s === 'Delivered' ? 'done' : s === 'Out for delivery' ? 'transit' : s === 'Cancelled' ? 'cancelled' : 'pending');
+
+  async function loadPurchases() {
+    purchases = await api('/purchases');
+    updatePurchBadge();
+  }
+
+  async function renderPurchases() {
+    const box = $('#purch-list');
+    if (!box) return;
+    if (!session || session.role === 'buyer') { box.innerHTML = ''; $('#purch-count').textContent = ''; return; }
+    box.innerHTML = '<p class="empty">Loading purchases...</p>';
+    try {
+      await loadPurchases();
+    } catch (ex) {
+      box.innerHTML = `<p class="empty">${esc(ex.message)}</p>`;
+      $('#purch-count').textContent = '';
+      return;
+    }
+    paintPurchases();
+  }
+
+  function paintPurchases() {
+    const box = $('#purch-list');
+    if (!box) return;
+    box.innerHTML = purchases.length ? purchases.map((p) => `
+      <article class="purch-card" data-p-id="${esc(p.id)}">
+        <div class="purch-head">
+          <div>
+            <span class="order-id">Order #${esc(p.id)}</span>
+            <b>${esc(p.crop)}</b>
+            <p class="purch-qty">${num(p.qty)} ${esc(p.unit)} · ${peso(p.amt)}</p>
+          </div>
+          <span class="badge ${statusClass(p.status)}">${esc(p.status || 'Pending')}</span>
+        </div>
+        <p class="purch-buyer"><svg><use href="#i-user"/></svg>${esc(p.buyer)}${p.phone ? ' · ' + esc(p.phone) : ''}</p>
+        <p class="purch-buyer"><svg><use href="#i-pin"/></svg>${esc(p.location || 'No location on file')}</p>
+        <div class="purch-grid">
+          <label>Deliver to<input type="text" maxlength="255" data-p-addr placeholder="Barangay, town, landmark" value="${esc(p.deliveryAddress || p.location || '')}"></label>
+          <label>Delivery date<input type="date" data-p-date value="${esc(p.deliveryDate)}"></label>
+          <label>Status<select data-p-status>${DELIVERY_STATUSES.map((s) => `<option${s === (p.status || 'Pending') ? ' selected' : ''}>${s}</option>`).join('')}</select></label>
+          <button class="btn btn-sm btn-primary" type="button" data-p-save="${esc(p.id)}">Save</button>
+        </div>
+        <small class="order-id">Ordered ${fmtDate(p.date)}</small>
+      </article>`).join('')
+      : '<p class="empty">No buyer orders yet. Orders placed from the Marketplace will appear here with delivery details.</p>';
+    const open = purchases.filter((p) => p.status !== 'Delivered' && p.status !== 'Cancelled').length;
+    $('#purch-count').textContent = purchases.length
+      ? `${purchases.length} order${purchases.length === 1 ? '' : 's'} · ${open} pending delivery` : '';
+    updatePurchBadge();
+  }
+
+  $('#purch-list').addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-p-save]');
+    if (!btn) return;
+    const card = btn.closest('.purch-card');
+    const id = btn.dataset.pSave;
+    btn.disabled = true;
+    try {
+      const res = await api(`/purchases/${id}`, 'PUT', {
+        deliveryAddress: card.querySelector('[data-p-addr]').value.trim(),
+        deliveryDate: card.querySelector('[data-p-date]').value,
+        status: card.querySelector('[data-p-status]').value,
+      });
+      const p = purchases.find((x) => x.id === id);
+      if (p) { p.deliveryAddress = res.deliveryAddress; p.deliveryDate = res.deliveryDate; p.status = res.status; }
+      paintPurchases();
+      toast(`Order #${id} delivery updated.`);
+    } catch (ex) {
+      toast(ex.message);
+      btn.disabled = false;
+    }
+  });
+  $('#purch-refresh').addEventListener('click', renderPurchases);
 
   /* ---------- New listing form ---------- */
   let photoData = null;

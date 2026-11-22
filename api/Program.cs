@@ -785,6 +785,61 @@ app.MapGet("/api/orders", async (HttpContext ctx) =>
     return Results.Ok(await LoadBuyerOrdersAsync(conn, uid.Value));
 });
 
+/* ---------- Purchases (buyer orders received by the farmer) ---------- */
+
+app.MapGet("/api/purchases", async (HttpContext ctx) =>
+{
+    if (!db.Ready) return DbDown();
+    var uid = CurrentUid(ctx);
+    if (uid is null) return NotSignedIn();
+
+    await using var conn = await db.OpenAsync();
+    return Results.Ok(await LoadPurchasesAsync(conn, uid.Value));
+});
+
+app.MapPut("/api/purchases/{id}", async (string id, HttpContext ctx, PurchaseBody b) =>
+{
+    if (!db.Ready) return DbDown();
+    var uid = CurrentUid(ctx);
+    if (uid is null) return NotSignedIn();
+    if (!long.TryParse(id, out var saleId)) return Results.NotFound();
+
+    var status = string.IsNullOrWhiteSpace(b.Status) ? "Pending" : b.Status.Trim();
+    if (!IsDeliveryStatus(status))
+        return Results.Json(new { error = "Pick a valid delivery status." }, statusCode: 400);
+
+    DateTime? deliveryDate = null;
+    if (!string.IsNullOrWhiteSpace(b.DeliveryDate))
+    {
+        if (!DateOnly.TryParseExact(b.DeliveryDate.Trim(), "yyyy-MM-dd", out var d))
+            return Results.Json(new { error = "Pick a valid delivery date." }, statusCode: 400);
+        deliveryDate = d.ToDateTime(TimeOnly.MinValue);
+    }
+
+    var address = (b.DeliveryAddress ?? "").Trim();
+    if (address.Length > 255) address = address[..255];
+
+    await using var conn = await db.OpenAsync();
+    await using var cmd = conn.CreateCommand();
+    cmd.CommandText = """
+        UPDATE sales SET delivery_status = @s, delivery_date = @d, delivery_address = @a
+        WHERE sale_id = @id AND user_id = @u AND buyer_id IS NOT NULL
+        """;
+    cmd.Parameters.AddWithValue("@s", status);
+    cmd.Parameters.AddWithValue("@d", (object?)deliveryDate ?? DBNull.Value);
+    cmd.Parameters.AddWithValue("@a", address.Length == 0 ? (object)DBNull.Value : address);
+    cmd.Parameters.AddWithValue("@id", saleId);
+    cmd.Parameters.AddWithValue("@u", uid.Value);
+    if (await cmd.ExecuteNonQueryAsync() == 0) return Results.NotFound();
+
+    return Results.Ok(new
+    {
+        status,
+        deliveryDate = deliveryDate?.ToString("yyyy-MM-dd") ?? "",
+        deliveryAddress = address,
+    });
+});
+
 /* ---------- Profile, reset, notifications ---------- */
 
 app.MapPut("/api/profile", async (HttpContext ctx, ProfileBody b) =>
@@ -909,6 +964,8 @@ static string Num(decimal n) => n.ToString("#,##0.##", CultureInfo.InvariantCult
 static string Peso(decimal n) => "₱" + Num(n);
 
 static bool InSet(string? value, string[] set) => value != null && Array.IndexOf(set, value) >= 0;
+static bool IsDeliveryStatus(string s) =>
+    s is "Pending" or "Out for delivery" or "Delivered" or "Cancelled";
 static string NormalizeAnswer(string value) => Regex.Replace(value.Trim().ToLowerInvariant(), @"\s+", " ");
 static bool DateOk(string? value) =>
     value != null && DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
@@ -1239,7 +1296,7 @@ static async Task<List<BuyerOrderDto>> LoadBuyerOrdersAsync(MySqlConnection conn
     await using var cmd = conn.CreateCommand();
     cmd.CommandText = """
         SELECT s.sale_id, s.sale_date, s.crop_name, s.quantity, s.unit, s.amount,
-               u.full_name, u.farm_name
+               u.full_name, u.farm_name, s.delivery_status, s.delivery_date, s.delivery_address
         FROM sales s
         JOIN users u ON u.user_id = s.user_id
         WHERE s.buyer_id = @u
@@ -1260,6 +1317,47 @@ static async Task<List<BuyerOrderDto>> LoadBuyerOrdersAsync(MySqlConnection conn
             Amt = r.GetDecimal(r.GetOrdinal("amount")),
             Seller = r.GetString(r.GetOrdinal("full_name")),
             Farm = r.IsDBNull(r.GetOrdinal("farm_name")) ? "" : r.GetString(r.GetOrdinal("farm_name")),
+            Status = r.IsDBNull(r.GetOrdinal("delivery_status")) ? "Pending" : r.GetString(r.GetOrdinal("delivery_status")),
+            DeliveryDate = r.IsDBNull(r.GetOrdinal("delivery_date")) ? "" : r.GetDateTime(r.GetOrdinal("delivery_date")).ToString("yyyy-MM-dd"),
+            DeliveryAddress = r.IsDBNull(r.GetOrdinal("delivery_address")) ? "" : r.GetString(r.GetOrdinal("delivery_address")),
+        });
+    }
+    return list;
+}
+
+static async Task<List<PurchaseDto>> LoadPurchasesAsync(MySqlConnection conn, long uid)
+{
+    var list = new List<PurchaseDto>();
+    await using var cmd = conn.CreateCommand();
+    cmd.CommandText = """
+        SELECT s.sale_id, s.sale_date, s.crop_name, s.quantity, s.unit, s.amount,
+               COALESCE(u.full_name, s.buyer_name, 'Buyer') AS buyer_name,
+               COALESCE(u.phone, '') AS phone, COALESCE(u.location, '') AS location,
+               s.delivery_status, s.delivery_date, s.delivery_address
+        FROM sales s
+        LEFT JOIN users u ON u.user_id = s.buyer_id
+        WHERE s.user_id = @u AND s.buyer_id IS NOT NULL
+        ORDER BY s.sale_id DESC
+        LIMIT 200
+        """;
+    cmd.Parameters.AddWithValue("@u", uid);
+    await using var r = await cmd.ExecuteReaderAsync();
+    while (await r.ReadAsync())
+    {
+        list.Add(new PurchaseDto
+        {
+            Id = r.GetInt64(r.GetOrdinal("sale_id")).ToString(),
+            Date = r.GetDateTime(r.GetOrdinal("sale_date")).ToString("yyyy-MM-dd"),
+            Crop = r.GetString(r.GetOrdinal("crop_name")),
+            Qty = r.GetDecimal(r.GetOrdinal("quantity")),
+            Unit = r.IsDBNull(r.GetOrdinal("unit")) ? "" : r.GetString(r.GetOrdinal("unit")),
+            Amt = r.GetDecimal(r.GetOrdinal("amount")),
+            Buyer = r.GetString(r.GetOrdinal("buyer_name")),
+            Phone = r.GetString(r.GetOrdinal("phone")),
+            Location = r.GetString(r.GetOrdinal("location")),
+            Status = r.IsDBNull(r.GetOrdinal("delivery_status")) ? "Pending" : r.GetString(r.GetOrdinal("delivery_status")),
+            DeliveryDate = r.IsDBNull(r.GetOrdinal("delivery_date")) ? "" : r.GetDateTime(r.GetOrdinal("delivery_date")).ToString("yyyy-MM-dd"),
+            DeliveryAddress = r.IsDBNull(r.GetOrdinal("delivery_address")) ? "" : r.GetString(r.GetOrdinal("delivery_address")),
         });
     }
     return list;
@@ -1418,6 +1516,7 @@ public sealed record ExpenseBody(string? Date, string? Cat, string? Desc, decima
 public sealed record ListingBody(string? Name, string? Category, decimal Qty, string? Unit, decimal Price,
     string? Desc, string? Loc, string? Phone, string? Photo, string? Status, bool Undo = false);
 public sealed record OrderBody(decimal Qty);
+public sealed record PurchaseBody(string? Status, string? DeliveryDate, string? DeliveryAddress);
 public sealed record ProfileBody(string? Name, string? Farm, string? Phone, string? Loc);
 public sealed record ForgotQuestionBody(string? Username);
 public sealed record ForgotResetBody(string? Username, string? Answer, string? NewPassword);
@@ -1531,7 +1630,25 @@ public sealed class BuyerOrderDto
     public decimal Amt { get; set; }
     public string Seller { get; set; } = "";
     public string Farm { get; set; } = "";
-    public string Status { get; set; } = "Completed";
+    public string Status { get; set; } = "Pending";
+    public string DeliveryDate { get; set; } = "";
+    public string DeliveryAddress { get; set; } = "";
+}
+
+public sealed class PurchaseDto
+{
+    public string Id { get; set; } = "";
+    public string Date { get; set; } = "";
+    public string Crop { get; set; } = "";
+    public decimal Qty { get; set; }
+    public string Unit { get; set; } = "";
+    public decimal Amt { get; set; }
+    public string Buyer { get; set; } = "";
+    public string Phone { get; set; } = "";
+    public string Location { get; set; } = "";
+    public string Status { get; set; } = "Pending";
+    public string DeliveryDate { get; set; } = "";
+    public string DeliveryAddress { get; set; } = "";
 }
 
 public sealed class ActivityDto
