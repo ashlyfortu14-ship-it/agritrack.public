@@ -820,10 +820,11 @@ app.MapPost("/api/orders/{id}/cancel", async (string id, HttpContext ctx) =>
     await using var conn = await db.OpenAsync();
     await using var tx = await conn.BeginTransactionAsync();
 
-    long ownerId, buyerId;
-    long? listingId;
-    decimal qty;
-    string crop, unit, status;
+    long ownerId = 0, buyerId = 0;
+    long? listingId = null;
+    decimal qty = 0;
+    string crop = "", unit = "", status = "Pending";
+    var found = false;
     await using (var sel = conn.CreateCommand())
     {
         sel.Transaction = tx;
@@ -832,17 +833,22 @@ app.MapPost("/api/orders/{id}/cancel", async (string id, HttpContext ctx) =>
             FROM sales WHERE sale_id = @id FOR UPDATE
             """;
         sel.Parameters.AddWithValue("@id", saleId);
-        await using var r = await sel.ExecuteReaderAsync();
-        if (!await r.ReadAsync()) { await tx.RollbackAsync(); return Results.NotFound(); }
-        ownerId = r.GetInt64(r.GetOrdinal("user_id"));
-        buyerId = r.IsDBNull(r.GetOrdinal("buyer_id")) ? 0 : r.GetInt64(r.GetOrdinal("buyer_id"));
-        listingId = r.IsDBNull(r.GetOrdinal("listing_id")) ? null : r.GetInt64(r.GetOrdinal("listing_id"));
-        crop = r.GetString(r.GetOrdinal("crop_name"));
-        qty = r.GetDecimal(r.GetOrdinal("quantity"));
-        unit = r.IsDBNull(r.GetOrdinal("unit")) ? "" : r.GetString(r.GetOrdinal("unit"));
-        status = r.IsDBNull(r.GetOrdinal("delivery_status")) ? "Pending" : r.GetString(r.GetOrdinal("delivery_status"));
-        await r.DisposeAsync();
+        await using (var r = await sel.ExecuteReaderAsync())
+        {
+            found = await r.ReadAsync();
+            if (found)
+            {
+                ownerId = r.GetInt64(r.GetOrdinal("user_id"));
+                buyerId = r.IsDBNull(r.GetOrdinal("buyer_id")) ? 0 : r.GetInt64(r.GetOrdinal("buyer_id"));
+                listingId = r.IsDBNull(r.GetOrdinal("listing_id")) ? null : r.GetInt64(r.GetOrdinal("listing_id"));
+                crop = r.GetString(r.GetOrdinal("crop_name"));
+                qty = r.GetDecimal(r.GetOrdinal("quantity"));
+                unit = r.IsDBNull(r.GetOrdinal("unit")) ? "" : r.GetString(r.GetOrdinal("unit"));
+                status = r.IsDBNull(r.GetOrdinal("delivery_status")) ? "Pending" : r.GetString(r.GetOrdinal("delivery_status"));
+            }
+        }
     }
+    if (!found) { await tx.RollbackAsync(); return Results.NotFound(); }
 
     if (buyerId != uid.Value) { await tx.RollbackAsync(); return Results.NotFound(); }
     if (status == "Delivered")
@@ -909,9 +915,10 @@ app.MapPut("/api/purchases/{id}", async (string id, HttpContext ctx, PurchaseBod
     await using var conn = await db.OpenAsync();
     await using var tx = await conn.BeginTransactionAsync();
 
-    long? listingId;
-    decimal qty;
-    string previous;
+    long? listingId = null;
+    decimal qty = 0;
+    var previous = "Pending";
+    var found = false;
     await using (var sel = conn.CreateCommand())
     {
         sel.Transaction = tx;
@@ -921,13 +928,18 @@ app.MapPut("/api/purchases/{id}", async (string id, HttpContext ctx, PurchaseBod
             """;
         sel.Parameters.AddWithValue("@id", saleId);
         sel.Parameters.AddWithValue("@u", uid.Value);
-        await using var r = await sel.ExecuteReaderAsync();
-        if (!await r.ReadAsync()) { await tx.RollbackAsync(); return Results.NotFound(); }
-        listingId = r.IsDBNull(r.GetOrdinal("listing_id")) ? null : r.GetInt64(r.GetOrdinal("listing_id"));
-        qty = r.GetDecimal(r.GetOrdinal("quantity"));
-        previous = r.IsDBNull(r.GetOrdinal("delivery_status")) ? "Pending" : r.GetString(r.GetOrdinal("delivery_status"));
-        await r.DisposeAsync();
+        await using (var r = await sel.ExecuteReaderAsync())
+        {
+            found = await r.ReadAsync();
+            if (found)
+            {
+                listingId = r.IsDBNull(r.GetOrdinal("listing_id")) ? null : r.GetInt64(r.GetOrdinal("listing_id"));
+                qty = r.GetDecimal(r.GetOrdinal("quantity"));
+                previous = r.IsDBNull(r.GetOrdinal("delivery_status")) ? "Pending" : r.GetString(r.GetOrdinal("delivery_status"));
+            }
+        }
     }
+    if (!found) { await tx.RollbackAsync(); return Results.NotFound(); }
 
     if (previous == "Cancelled" && status != "Cancelled")
     {
