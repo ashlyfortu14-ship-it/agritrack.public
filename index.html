@@ -682,6 +682,43 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
   }
 }
 
+.push-left { margin-right: auto; }
+.print-only { display: none; }
+
+@media print {
+  @page { margin: 12mm; }
+  html, body { background: #fff; }
+  .app { display: block; min-height: 0; }
+  .sidebar, .topbar, .bottom-nav, .scrim, .toolbar .btn, .filters,
+  .toast, .modal, .notif, .row-actions, .modal-x { display: none !important; }
+  .main { padding: 0; max-width: none; }
+  .view { padding: 0; }
+  .print-only { display: block !important; }
+  .print-head { margin-bottom: 16px; }
+  .print-head > div {
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-bottom: 2px solid #0b4a34; padding-bottom: 8px; margin-bottom: 6px;
+  }
+  .print-head b { font-size: 18px; }
+  .print-head span { font-size: 14px; font-weight: 600; }
+  .print-head p { font-size: 11.5px; color: #555; }
+  .stats { grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+  .stat { border: 1px solid #d8ddd9; box-shadow: none; padding: 10px 12px; }
+  .stat-ic { display: none; }
+  .stat b { font-size: 15px; }
+  .panel { box-shadow: none; border: 1px solid #d8ddd9; break-inside: avoid; padding: 14px; }
+  .dash-grid { display: block; }
+  .dash-grid .panel + .panel { margin-top: 12px; }
+  .table-wrap { overflow: visible; border-radius: 0; }
+  .table { width: 100%; font-size: 11.5px; }
+  .table th:last-child, .table td:last-child { display: none; }
+  .table th, .table td { padding: 6px 8px; }
+  .table tr { break-inside: avoid; }
+  .table-foot { padding: 10px 0 0; }
+  .hbar i { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .summary dd { font-size: 14px; }
+}
+
 </style>
 </head>
 <body>
@@ -699,6 +736,8 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     <symbol id="i-search" viewBox="0 0 24 24"><path fill="currentColor" d="M15.500 14h-.8l-.3-.3a6.500 6.500 0 1 0-.7.7l.3.3v.8l5 5 1.500-1.500-5-5zm-6 0a4.500 4.500 0 1 1 0-9 4.500 4.500 0 0 1 0 9z"/></symbol>
     <symbol id="i-edit" viewBox="0 0 24 24"><path fill="currentColor" d="M3 17.250V21h3.750L17.800 9.940l-3.750-3.750L3 17.250zM20.700 7.040a1 1 0 0 0 0-1.410l-2.340-2.340a1 1 0 0 0-1.410 0l-1.830 1.830 3.750 3.750 1.830-1.830z"/></symbol>
     <symbol id="i-trash" viewBox="0 0 24 24"><path fill="currentColor" d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.500l-1-1h-5l-1 1H5v2h14V4z"/></symbol>
+    <symbol id="i-print" viewBox="0 0 24 24"><path fill="currentColor" d="M19 8H5a3 3 0 0 0-3 3v6h4v4h12v-4h4v-6a3 3 0 0 0-3-3zm-3 11H8v-5h8v5zm3-7a1 1 0 1 1 0-2 1 1 0 0 1 0 2zM18 3H6v4h12V3z"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></symbol>
     <symbol id="i-bell" viewBox="0 0 24 24"><path fill="currentColor" d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6v-5c0-3.100-1.600-5.600-4.500-6.300V4a1.500 1.500 0 0 0-3 0v.7C7.600 5.400 6 7.900 6 11v5l-2 2v1h16v-1l-2-2z"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></symbol>
     <symbol id="i-eye" viewBox="0 0 24 24"><path fill="currentColor" d="M12 5C7 5 2.700 8.100 1 12.500 2.700 16.900 7 20 12 20s9.300-3.100 11-7.500C21.300 8.100 17 5 12 5zm0 12.500a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></symbol>
@@ -913,9 +952,14 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
 
     <!-- EXPENSES -->
     <section class="view" id="view-expenses" hidden>
+      <div class="print-only print-head">
+        <div><b>AgriTrack</b><span>Farm Expense Report</span></div>
+        <p id="print-exp-meta"></p>
+      </div>
       <div class="toolbar">
         <h3>Expense Management</h3>
-        <button class="btn btn-outline" id="export-exp">Export CSV</button>
+        <button class="btn btn-outline" id="export-exp" type="button"><svg class="btn-ic"><use href="#i-download"/></svg>Export CSV</button>
+        <button class="btn btn-primary" id="print-exp" type="button"><svg class="btn-ic"><use href="#i-print"/></svg>Print / PDF</button>
       </div>
       <div class="stats exp-stats">
         <div class="stat"><span class="stat-ic orange"><svg><use href="#i-wallet"/></svg></span><div><small>Total Expenses</small><b id="es-total">₱0</b></div></div>
@@ -1018,7 +1062,15 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
 
     <!-- REPORTS -->
     <section class="view" id="view-reports" hidden>
-      <div class="toolbar"><h3>Reports</h3></div>
+      <div class="print-only print-head">
+        <div><b>AgriTrack</b><span>Farm Report</span></div>
+        <p id="print-rpt-meta"></p>
+      </div>
+      <div class="toolbar">
+        <h3>Reports</h3>
+        <button class="btn btn-outline" id="export-rpt" type="button"><svg class="btn-ic"><use href="#i-download"/></svg>Export CSV</button>
+        <button class="btn btn-primary" id="print-rpt" type="button"><svg class="btn-ic"><use href="#i-print"/></svg>Print / PDF</button>
+      </div>
       <div class="dash-grid">
         <div class="panel"><h4>Expenses by Category</h4><div id="rp-exp" class="bars"></div></div>
         <div class="panel"><h4>Inventory by Category</h4><div id="rp-inv" class="bars"></div></div>
@@ -1100,6 +1152,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     <label class="full check"><input type="checkbox" id="i-logexp" checked> Record total cost as an expense</label>
     <label class="full">Notes<textarea id="i-notes" rows="2" placeholder="Optional notes about this item..."></textarea></label>
     <div class="form-actions full">
+      <button type="button" class="btn btn-danger push-left" id="void-item" hidden><svg class="btn-ic"><use href="#i-trash"/></svg>Delete item</button>
       <button type="button" class="btn btn-ghost" data-close>Cancel</button>
       <button type="submit" class="btn btn-primary">Save item</button>
     </div>
@@ -1600,6 +1653,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     $('#i-cost').value = item && item.cost ? item.cost : '';
     $('#i-logexp').checked = item ? item.logExp !== false : true;
     $('#i-notes').value = item ? (item.notes || '') : '';
+    $('#void-item').hidden = !item;
     $('#item-modal').showModal();
   }
   $('#add-item').addEventListener('click', () => openItemModal());
@@ -1640,28 +1694,38 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     }
   });
 
-  $('#inv-body').addEventListener('click', async (e) => {
+  async function removeItem(id) {
+    try {
+      const res = await api(`/inventory/${id}`, 'DELETE');
+      await reload();
+      populateExpenseFilters();
+      renderAll();
+      toast('Item and its linked expense deleted.', async () => {
+        try {
+          await api('/inventory', 'POST', { ...res.item, undo: true });
+          await reload();
+          populateExpenseFilters();
+          renderAll();
+        } catch (ex) { toast(ex.message); }
+      });
+    } catch (ex) {
+      toast(ex.message);
+    }
+  }
+
+  $('#void-item').addEventListener('click', async () => {
+    const item = editingItem;
+    if (!item) return;
+    if (!window.confirm(`Delete "${item.name}"? Its linked expense will be removed too.`)) return;
+    $('#item-modal').close();
+    await removeItem(item.id);
+  });
+
+  $('#inv-body').addEventListener('click', (e) => {
     const edit = e.target.closest('[data-edit]');
     const del = e.target.closest('[data-del]');
     if (edit) openItemModal(data.inventory.find((i) => i.id === edit.dataset.edit));
-    if (del) {
-      try {
-        const res = await api(`/inventory/${del.dataset.del}`, 'DELETE');
-        await reload();
-        populateExpenseFilters();
-        renderAll();
-        toast('Item and its linked expense deleted.', async () => {
-          try {
-            await api('/inventory', 'POST', { ...res.item, undo: true });
-            await reload();
-            populateExpenseFilters();
-            renderAll();
-          } catch (ex) { toast(ex.message); }
-        });
-      } catch (ex) {
-        toast(ex.message);
-      }
-    }
+    if (del) removeItem(del.dataset.del);
   });
 
   /* ---------- Expenses ---------- */
@@ -1743,6 +1807,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     }).join('') : `<tr><td colspan="6" class="empty">${data.expenses.length ? 'No expenses match your filters.' : 'No expenses yet. Add an inventory item with “Record total cost as an expense” checked.'}</td></tr>`;
     markSort('exp', sortState.exp);
     $('#exp-total').textContent = peso(rows.reduce((s, x) => s + x.amt, 0));
+    setPrintMeta('exp');
   }
 
   function updateExpNote() {
@@ -2099,22 +2164,33 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     return entries.map(([label, val]) => `
       <div class="hbar-row"><span>${esc(label)}</span><div class="hbar"><i style="width:${(val / max) * 100}%"></i></div><span>${fmt(val)}</span></div>`).join('');
   }
-  function renderReports() {
+  function reportSnapshot() {
     const byCat = {};
     data.expenses.forEach((x) => { byCat[x.cat] = (byCat[x.cat] || 0) + x.amt; });
-    $('#rp-exp').innerHTML = hbars(Object.entries(byCat).sort((a, b) => b[1] - a[1]), peso);
-
     const inv = {};
     data.inventory.forEach((i) => { inv[i.category] = (inv[i.category] || 0) + 1; });
-    $('#rp-inv').innerHTML = hbars(Object.entries(inv).sort((a, b) => b[1] - a[1]), (n) => `${n} item${n > 1 ? 's' : ''}`);
-
     const totalExp = data.expenses.reduce((s, x) => s + x.amt, 0);
     const months = new Set(data.expenses.map((x) => monthKey(x.date))).size || 1;
+    return {
+      expCats: Object.entries(byCat).sort((a, b) => b[1] - a[1]),
+      invCats: Object.entries(inv).sort((a, b) => b[1] - a[1]),
+      totalExp,
+      months,
+      avg: totalExp / months,
+      sales: data.sales,
+      net: data.sales - totalExp,
+    };
+  }
+  function renderReports() {
+    const r = reportSnapshot();
+    $('#rp-exp').innerHTML = hbars(r.expCats, peso);
+    $('#rp-inv').innerHTML = hbars(r.invCats, (n) => `${n} item${n > 1 ? 's' : ''}`);
     $('#rp-summary').innerHTML = `
-      <div><dt>Total expenses</dt><dd>${peso(totalExp)}</dd></div>
-      <div><dt>Average per month</dt><dd>${peso(totalExp / months)}</dd></div>
-      <div><dt>Total sales</dt><dd>${peso(data.sales)}</dd></div>
-      <div><dt>Net (sales − expenses)</dt><dd>${peso(data.sales - totalExp)}</dd></div>`;
+      <div><dt>Total expenses</dt><dd>${peso(r.totalExp)}</dd></div>
+      <div><dt>Average per month</dt><dd>${peso(r.avg)}</dd></div>
+      <div><dt>Total sales</dt><dd>${peso(r.sales)}</dd></div>
+      <div><dt>Net (sales − expenses)</dt><dd>${peso(r.net)}</dd></div>`;
+    setPrintMeta('rpt');
   }
 
   /* ---------- Settings ---------- */
@@ -2260,12 +2336,32 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     toast('Exported ' + name);
   }
+  function setPrintMeta(kind) {
+    const el = $(kind === 'exp' ? '#print-exp-meta' : '#print-rpt-meta');
+    if (!el || !session) return;
+    const when = new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+    el.textContent = `${session.farm || session.name || 'My farm'} · Generated ${when}`;
+  }
   $('#export-inv').addEventListener('click', () => exportCsv('agritrack-inventory.csv',
     ['Item', 'Category', 'Quantity', 'Unit', 'Supplier', 'Unit Cost', 'Total Value', 'Date Added'],
     data.inventory.map((i) => [i.name, i.category, i.qty, i.unit, i.supplier || '', i.cost || 0, (i.cost || 0) * i.qty, i.date])));
   $('#export-exp').addEventListener('click', () => exportCsv('agritrack-expenses.csv',
     ['Date', 'Description', 'Category', 'Payment', 'Paid To', 'Notes', 'Amount'],
     data.expenses.map((x) => [x.date, x.desc, x.cat, x.pay || '', x.paidTo || '', x.notes || '', x.amt])));
+  $('#export-rpt').addEventListener('click', () => {
+    const r = reportSnapshot();
+    const money = (n) => n.toFixed(2);
+    exportCsv('agritrack-report.csv', ['Section', 'Label', 'Value'], [
+      ['Summary', 'Total expenses (PHP)', money(r.totalExp)],
+      ['Summary', 'Average per month (PHP)', money(r.avg)],
+      ['Summary', 'Total sales (PHP)', money(r.sales)],
+      ['Summary', 'Net sales minus expenses (PHP)', money(r.net)],
+      ...r.expCats.map(([c, v]) => ['Expenses by category', c, money(v)]),
+      ...r.invCats.map(([c, n]) => ['Inventory by category', c, n]),
+    ]);
+  });
+  $('#print-exp').addEventListener('click', () => { setPrintMeta('exp'); window.print(); });
+  $('#print-rpt').addEventListener('click', () => { setPrintMeta('rpt'); window.print(); });
 
   /* ---------- Keyboard & browser back button ---------- */
   document.addEventListener('keydown', (e) => {
