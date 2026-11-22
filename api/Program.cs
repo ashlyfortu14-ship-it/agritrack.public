@@ -744,6 +744,29 @@ app.MapPost("/api/listings/{id}/order", async (string id, HttpContext ctx, Order
         return Results.Json(new { error = "Enter a quantity that is available for this listing." }, statusCode: 400);
     }
 
+    DateTime? deliveryDate = null;
+    if (!string.IsNullOrWhiteSpace(b.DeliveryDate))
+    {
+        if (!DateOnly.TryParseExact(b.DeliveryDate.Trim(), "yyyy-MM-dd", out var d))
+        {
+            await tx.RollbackAsync();
+            return Results.Json(new { error = "Pick a valid delivery date." }, statusCode: 400);
+        }
+        deliveryDate = d.ToDateTime(TimeOnly.MinValue);
+    }
+    var deliveryAddress = (b.DeliveryAddress ?? "").Trim();
+    if (deliveryAddress.Length > 255)
+    {
+        await tx.RollbackAsync();
+        return Results.Json(new { error = "Delivery address is too long." }, statusCode: 400);
+    }
+    var orderedBy = (b.BuyerName ?? "").Trim();
+    if (orderedBy.Length > 100)
+    {
+        await tx.RollbackAsync();
+        return Results.Json(new { error = "Buyer name is too long." }, statusCode: 400);
+    }
+
     var remaining = qty - b.Qty;
     var total = b.Qty * price;
 
@@ -765,8 +788,10 @@ app.MapPost("/api/listings/{id}/order", async (string id, HttpContext ctx, Order
     }
     else
     {
-        var buyerName = await LoadUserNameAsync(conn, uid.Value, tx);
-        await InsertSaleAsync(conn, tx, ownerId, listingId, crop, b.Qty, unit, total, buyerName, uid.Value);
+        var accountName = await LoadUserNameAsync(conn, uid.Value, tx);
+        var buyerName = orderedBy.Length > 0 ? orderedBy : accountName;
+        await InsertSaleAsync(conn, tx, ownerId, listingId, crop, b.Qty, unit, total, buyerName, uid.Value,
+            deliveryAddress, deliveryDate);
         await LogActivityAsync(conn, tx, ownerId, "purple",
             $"New order from {buyerName}: {Num(b.Qty)} {unit} of {crop} ({Peso(total)})");
     }
@@ -1145,13 +1170,16 @@ static async Task LogActivityAsync(MySqlConnection conn, MySqlTransaction? tx, l
 }
 
 static async Task InsertSaleAsync(MySqlConnection conn, MySqlTransaction tx, long uid, long listingId,
-    string crop, decimal qty, string unit, decimal amount, string buyer, long? buyerId = null)
+    string crop, decimal qty, string unit, decimal amount, string buyer, long? buyerId = null,
+    string? deliveryAddress = null, DateTime? deliveryDate = null)
 {
     await using var cmd = conn.CreateCommand();
     cmd.Transaction = tx;
     cmd.CommandText = """
-        INSERT INTO sales (user_id, listing_id, buyer_id, sale_date, crop_name, quantity, unit, amount, buyer_name)
-        VALUES (@u, @listing, @buyerId, CURDATE(), @crop, @qty, @unit, @amount, @buyer)
+        INSERT INTO sales (user_id, listing_id, buyer_id, sale_date, crop_name, quantity, unit, amount,
+                           buyer_name, delivery_address, delivery_date)
+        VALUES (@u, @listing, @buyerId, CURDATE(), @crop, @qty, @unit, @amount,
+                @buyer, @addr, @deliveryDate)
         """;
     cmd.Parameters.AddWithValue("@u", uid);
     cmd.Parameters.AddWithValue("@listing", listingId);
@@ -1161,6 +1189,8 @@ static async Task InsertSaleAsync(MySqlConnection conn, MySqlTransaction tx, lon
     cmd.Parameters.AddWithValue("@unit", unit);
     cmd.Parameters.AddWithValue("@amount", amount);
     cmd.Parameters.AddWithValue("@buyer", buyer);
+    cmd.Parameters.AddWithValue("@addr", string.IsNullOrEmpty(deliveryAddress) ? (object)DBNull.Value : deliveryAddress);
+    cmd.Parameters.AddWithValue("@deliveryDate", (object?)deliveryDate ?? DBNull.Value);
     await cmd.ExecuteNonQueryAsync();
 }
 
@@ -1331,7 +1361,7 @@ static async Task<List<PurchaseDto>> LoadPurchasesAsync(MySqlConnection conn, lo
     await using var cmd = conn.CreateCommand();
     cmd.CommandText = """
         SELECT s.sale_id, s.sale_date, s.crop_name, s.quantity, s.unit, s.amount,
-               COALESCE(u.full_name, s.buyer_name, 'Buyer') AS buyer_name,
+               COALESCE(NULLIF(s.buyer_name, ''), u.full_name, 'Buyer') AS buyer_name,
                COALESCE(u.phone, '') AS phone, COALESCE(u.location, '') AS location,
                s.delivery_status, s.delivery_date, s.delivery_address
         FROM sales s
@@ -1515,7 +1545,7 @@ public sealed record ExpenseBody(string? Date, string? Cat, string? Desc, decima
     string? PaidTo, string? Notes, string? ItemId, bool Undo = false);
 public sealed record ListingBody(string? Name, string? Category, decimal Qty, string? Unit, decimal Price,
     string? Desc, string? Loc, string? Phone, string? Photo, string? Status, bool Undo = false);
-public sealed record OrderBody(decimal Qty);
+public sealed record OrderBody(decimal Qty, string? BuyerName = null, string? DeliveryAddress = null, string? DeliveryDate = null);
 public sealed record PurchaseBody(string? Status, string? DeliveryDate, string? DeliveryAddress);
 public sealed record ProfileBody(string? Name, string? Farm, string? Phone, string? Loc);
 public sealed record ForgotQuestionBody(string? Username);
