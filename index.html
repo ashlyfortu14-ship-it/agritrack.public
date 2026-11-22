@@ -672,6 +672,9 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
 .order-card small { font-size: 11.5px; color: var(--muted); }
 .order-cancel { align-self: flex-start; margin-top: 4px; color: var(--red); }
 .order-cancel:hover { background: #fdecec; border-color: #f3c9c9; }
+.order-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.order-actions .order-cancel { margin-top: 0; }
+.order-received-note { align-self: flex-start; font-size: 12px; color: var(--green-700); background: var(--green-50); border-radius: 8px; padding: 6px 10px; }
 .orders-foot { padding-top: 14px; font-size: 12px; color: var(--muted); }
 
 /* Purchases (farmer delivery tracking) */
@@ -687,6 +690,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
 .purch-qty { font-size: 13px; color: var(--green-800); font-weight: 600; font-variant-numeric: tabular-nums; }
 .purch-buyer { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
 .purch-buyer svg { width: 14px; height: 14px; flex: none; }
+.purch-received { font-size: 12px; color: var(--green-700); background: var(--green-50); border-radius: 8px; padding: 6px 10px; }
 .purch-grid { display: grid; grid-template-columns: minmax(160px, 2fr) minmax(130px, 1fr) minmax(130px, 1fr) auto; gap: 10px; align-items: end; margin-top: 6px; }
 .purch-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--muted); font-weight: 600; }
 .purch-grid input, .purch-grid select { padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line); font: inherit; font-size: 12.5px; color: var(--ink); background: #fff; }
@@ -1910,7 +1914,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     if (!data.activities.length) { ul.innerHTML = '<li class="empty" style="display:block">Nothing yet. Your recent actions will show up here.</li>'; return; }
     const icon = { green: 'i-leaf', orange: 'i-wallet', purple: 'i-cart' };
     ul.innerHTML = data.activities.slice(0, 4).map((a) => `
-      <li data-go="${TYPE_VIEW[a.type] || 'dashboard'}" tabindex="0">
+      <li data-go="${activityView(a)}" tabindex="0">
         <span class="act-ic ${a.type}"><svg><use href="#${icon[a.type] || 'i-leaf'}"/></svg></span>
         <div class="act-text">${esc(a.text)}<small>${fmtStamp(a.at)}</small></div>
       </li>`).join('');
@@ -2513,7 +2517,12 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
             ? ''
             : `<small>Estimated delivery: 3–7 days · ${etaRange(o.date)}</small>${o.deliveryAddress ? `<small>Deliver to ${esc(o.deliveryAddress)}</small>` : ''}`}
         ${!o.status || o.status === 'Pending' || o.status === 'Out for delivery'
-          ? `<button class="btn btn-sm btn-ghost order-cancel" type="button" data-cancel="${esc(o.id)}">Cancel order</button>`
+          ? (o.received
+              ? '<span class="order-received-note">Receipt confirmed. Waiting for the farmer to mark it Delivered.</span>'
+              : `<div class="order-actions">
+                  <button class="btn btn-sm btn-primary" type="button" data-received="${esc(o.id)}">Received</button>
+                  <button class="btn btn-sm btn-ghost order-cancel" type="button" data-cancel="${esc(o.id)}">Cancel order</button>
+                </div>`)
           : ''}
       </article>`).join('')
       : '<p class="empty">No orders yet. Add crops to your cart and check out to place your first order.</p>';
@@ -2522,6 +2531,21 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
   }
   $('#orders-refresh').addEventListener('click', renderOrders);
   $('#orders-list').addEventListener('click', async (e) => {
+    const rec = e.target.closest('[data-received]');
+    if (rec) {
+      const id = rec.dataset.received;
+      if (!window.confirm(`Confirm you received order #${id}? The farmer will be notified to mark it Delivered.`)) return;
+      rec.disabled = true;
+      try {
+        await api(`/orders/${id}/received`, 'POST');
+        await renderOrders();
+        toast('Thanks! The farmer has been notified to mark it Delivered.');
+      } catch (ex) {
+        toast(ex.message);
+        rec.disabled = false;
+      }
+      return;
+    }
     const btn = e.target.closest('[data-cancel]');
     if (!btn) return;
     const id = btn.dataset.cancel;
@@ -2578,6 +2602,9 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
         </div>
         <p class="purch-buyer"><svg><use href="#i-user"/></svg>${esc(p.buyer)}${p.phone ? ' · ' + esc(p.phone) : ''}</p>
         <p class="purch-buyer"><svg><use href="#i-pin"/></svg>${esc(p.location || 'No location on file')}</p>
+        ${p.received && p.status !== 'Delivered' && p.status !== 'Cancelled'
+          ? '<p class="purch-received">Buyer confirmed receipt. Mark the status as Delivered.</p>'
+          : ''}
         <div class="purch-grid">
           <label>Deliver to<input type="text" maxlength="255" data-p-addr placeholder="Barangay, town, landmark" value="${esc(p.deliveryAddress || p.location || '')}"></label>
           <label>Delivery date<input type="date" data-p-date value="${esc(p.deliveryDate)}"></label>
@@ -2841,11 +2868,12 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
 
   /* ---------- Notifications ---------- */
   const TYPE_VIEW = { green: 'inventory', orange: 'expenses', purple: 'marketplace' };
+  const activityView = (a) => (/Mark it Delivered/i.test(a.text) ? 'purchases' : (TYPE_VIEW[a.type] || 'dashboard'));
   const isUnread = (a) => a.at > (data.seen || '');
   function updateBell() { $('.bell .dot').hidden = !data.activities.some(isUnread); }
   function renderNotif() {
     const items = data.activities.slice(0, 8).map((a) =>
-      `<li data-go="${TYPE_VIEW[a.type] || 'dashboard'}" class="${isUnread(a) ? 'unread' : ''}">${esc(a.text)}<small>${fmtStamp(a.at)}</small></li>`).join('');
+      `<li data-go="${activityView(a)}" class="${isUnread(a) ? 'unread' : ''}">${esc(a.text)}<small>${fmtStamp(a.at)}</small></li>`).join('');
     $('#notif').innerHTML = `<div class="notif-head"><b>Notifications</b><button id="mark-read">Mark all as read</button></div>` +
       (items ? `<ul>${items}</ul>` : '<p class="empty">No notifications yet.</p>');
   }

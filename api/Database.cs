@@ -75,6 +75,7 @@ public sealed class Db
                 await MigrateRecoveryColumnsAsync(conn);
                 await MigrateSalesBuyerAsync(conn);
                 await MigrateSalesDeliveryAsync(conn);
+                await MigrateSalesReceivedAsync(conn);
                 await SeedIfEmptyAsync(conn);
             }
 
@@ -194,6 +195,22 @@ public sealed class Db
             cmd.CommandText = step;
             await cmd.ExecuteNonQueryAsync();
         }
+    }
+
+    private static async Task MigrateSalesReceivedAsync(MySqlConnection conn)
+    {
+        await using (var check = conn.CreateCommand())
+        {
+            check.CommandText = """
+                SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sales' AND COLUMN_NAME = 'received_by_buyer_at'
+                """;
+            if (Convert.ToInt64(await check.ExecuteScalarAsync()) > 0) return;
+        }
+
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "ALTER TABLE sales ADD COLUMN received_by_buyer_at DATETIME NULL";
+        await cmd.ExecuteNonQueryAsync();
     }
 
     private static async Task SeedIfEmptyAsync(MySqlConnection conn)

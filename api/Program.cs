@@ -868,6 +868,76 @@ app.MapPost("/api/orders/{id}/cancel", async (string id, HttpContext ctx) =>
     return Results.Ok(new { status = "Cancelled" });
 });
 
+app.MapPost("/api/orders/{id}/received", async (string id, HttpContext ctx) =>
+{
+    if (!db.Ready) return DbDown();
+    var uid = CurrentUid(ctx);
+    if (uid is null) return NotSignedIn();
+    if (!long.TryParse(id, out var saleId)) return Results.NotFound();
+
+    await using var conn = await db.OpenAsync();
+    await using var tx = await conn.BeginTransactionAsync();
+
+    long ownerId = 0, buyerId = 0;
+    decimal qty = 0;
+    string crop = "", unit = "", status = "Pending";
+    var already = false;
+    var found = false;
+    await using (var sel = conn.CreateCommand())
+    {
+        sel.Transaction = tx;
+        sel.CommandText = """
+            SELECT user_id, buyer_id, crop_name, quantity, unit, delivery_status, received_by_buyer_at
+            FROM sales WHERE sale_id = @id FOR UPDATE
+            """;
+        sel.Parameters.AddWithValue("@id", saleId);
+        await using (var r = await sel.ExecuteReaderAsync())
+        {
+            found = await r.ReadAsync();
+            if (found)
+            {
+                ownerId = r.GetInt64(r.GetOrdinal("user_id"));
+                buyerId = r.IsDBNull(r.GetOrdinal("buyer_id")) ? 0 : r.GetInt64(r.GetOrdinal("buyer_id"));
+                crop = r.GetString(r.GetOrdinal("crop_name"));
+                qty = r.GetDecimal(r.GetOrdinal("quantity"));
+                unit = r.IsDBNull(r.GetOrdinal("unit")) ? "" : r.GetString(r.GetOrdinal("unit"));
+                status = r.IsDBNull(r.GetOrdinal("delivery_status")) ? "Pending" : r.GetString(r.GetOrdinal("delivery_status"));
+                already = !r.IsDBNull(r.GetOrdinal("received_by_buyer_at"));
+            }
+        }
+    }
+
+    if (!found || buyerId != uid.Value)
+    {
+        await tx.RollbackAsync();
+        return Results.NotFound();
+    }
+    if (status == "Cancelled")
+    {
+        await tx.RollbackAsync();
+        return Results.Json(new { error = "This order was cancelled." }, statusCode: 400);
+    }
+    if (already || status == "Delivered")
+    {
+        await tx.CommitAsync();
+        return Results.Ok(new { received = true, already = true });
+    }
+
+    await using (var upd = conn.CreateCommand())
+    {
+        upd.Transaction = tx;
+        upd.CommandText = "UPDATE sales SET received_by_buyer_at = NOW() WHERE sale_id = @id";
+        upd.Parameters.AddWithValue("@id", saleId);
+        await upd.ExecuteNonQueryAsync();
+    }
+    var buyerName = await LoadUserNameAsync(conn, uid.Value, tx);
+    await LogActivityAsync(conn, tx, ownerId, "green",
+        $"{buyerName} confirmed receipt of {Num(qty)} {unit} of {crop} (Order #{saleId}). Mark it Delivered.");
+
+    await tx.CommitAsync();
+    return Results.Ok(new { received = true });
+});
+
 /* ---------- Purchases (buyer orders received by the farmer) ---------- */
 
 app.MapGet("/api/purchases", async (HttpContext ctx) =>
@@ -1444,7 +1514,8 @@ static async Task<List<BuyerOrderDto>> LoadBuyerOrdersAsync(MySqlConnection conn
     await using var cmd = conn.CreateCommand();
     cmd.CommandText = """
         SELECT s.sale_id, s.sale_date, s.crop_name, s.quantity, s.unit, s.amount,
-               u.full_name, u.farm_name, s.delivery_status, s.delivery_date, s.delivery_address
+               u.full_name, u.farm_name, s.delivery_status, s.delivery_date, s.delivery_address,
+               s.received_by_buyer_at
         FROM sales s
         JOIN users u ON u.user_id = s.user_id
         WHERE s.buyer_id = @u
@@ -1468,6 +1539,7 @@ static async Task<List<BuyerOrderDto>> LoadBuyerOrdersAsync(MySqlConnection conn
             Status = r.IsDBNull(r.GetOrdinal("delivery_status")) ? "Pending" : r.GetString(r.GetOrdinal("delivery_status")),
             DeliveryDate = r.IsDBNull(r.GetOrdinal("delivery_date")) ? "" : r.GetDateTime(r.GetOrdinal("delivery_date")).ToString("yyyy-MM-dd"),
             DeliveryAddress = r.IsDBNull(r.GetOrdinal("delivery_address")) ? "" : r.GetString(r.GetOrdinal("delivery_address")),
+            Received = !r.IsDBNull(r.GetOrdinal("received_by_buyer_at")),
         });
     }
     return list;
@@ -1481,7 +1553,7 @@ static async Task<List<PurchaseDto>> LoadPurchasesAsync(MySqlConnection conn, lo
         SELECT s.sale_id, s.sale_date, s.crop_name, s.quantity, s.unit, s.amount,
                COALESCE(NULLIF(s.buyer_name, ''), u.full_name, 'Buyer') AS buyer_name,
                COALESCE(u.phone, '') AS phone, COALESCE(u.location, '') AS location,
-               s.delivery_status, s.delivery_date, s.delivery_address
+               s.delivery_status, s.delivery_date, s.delivery_address, s.received_by_buyer_at
         FROM sales s
         LEFT JOIN users u ON u.user_id = s.buyer_id
         WHERE s.user_id = @u AND s.buyer_id IS NOT NULL
@@ -1506,6 +1578,7 @@ static async Task<List<PurchaseDto>> LoadPurchasesAsync(MySqlConnection conn, lo
             Status = r.IsDBNull(r.GetOrdinal("delivery_status")) ? "Pending" : r.GetString(r.GetOrdinal("delivery_status")),
             DeliveryDate = r.IsDBNull(r.GetOrdinal("delivery_date")) ? "" : r.GetDateTime(r.GetOrdinal("delivery_date")).ToString("yyyy-MM-dd"),
             DeliveryAddress = r.IsDBNull(r.GetOrdinal("delivery_address")) ? "" : r.GetString(r.GetOrdinal("delivery_address")),
+            Received = !r.IsDBNull(r.GetOrdinal("received_by_buyer_at")),
         });
     }
     return list;
@@ -1781,6 +1854,7 @@ public sealed class BuyerOrderDto
     public string Status { get; set; } = "Pending";
     public string DeliveryDate { get; set; } = "";
     public string DeliveryAddress { get; set; } = "";
+    public bool Received { get; set; }
 }
 
 public sealed class PurchaseDto
@@ -1797,6 +1871,7 @@ public sealed class PurchaseDto
     public string Status { get; set; } = "Pending";
     public string DeliveryDate { get; set; } = "";
     public string DeliveryAddress { get; set; } = "";
+    public bool Received { get; set; }
 }
 
 public sealed class ActivityDto
