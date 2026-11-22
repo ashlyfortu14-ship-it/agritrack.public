@@ -744,16 +744,6 @@ app.MapPost("/api/listings/{id}/order", async (string id, HttpContext ctx, Order
         return Results.Json(new { error = "Enter a quantity that is available for this listing." }, statusCode: 400);
     }
 
-    DateTime? deliveryDate = null;
-    if (!string.IsNullOrWhiteSpace(b.DeliveryDate))
-    {
-        if (!DateOnly.TryParseExact(b.DeliveryDate.Trim(), "yyyy-MM-dd", out var d))
-        {
-            await tx.RollbackAsync();
-            return Results.Json(new { error = "Pick a valid delivery date." }, statusCode: 400);
-        }
-        deliveryDate = d.ToDateTime(TimeOnly.MinValue);
-    }
     var deliveryAddress = (b.DeliveryAddress ?? "").Trim();
     if (deliveryAddress.Length > 255)
     {
@@ -791,7 +781,7 @@ app.MapPost("/api/listings/{id}/order", async (string id, HttpContext ctx, Order
         var accountName = await LoadUserNameAsync(conn, uid.Value, tx);
         var buyerName = orderedBy.Length > 0 ? orderedBy : accountName;
         await InsertSaleAsync(conn, tx, ownerId, listingId, crop, b.Qty, unit, total, buyerName, uid.Value,
-            deliveryAddress, deliveryDate);
+            deliveryAddress);
         await LogActivityAsync(conn, tx, ownerId, "purple",
             $"New order from {buyerName}: {Num(b.Qty)} {unit} of {crop} ({Peso(total)})");
     }
@@ -1673,7 +1663,7 @@ public sealed record ExpenseBody(string? Date, string? Cat, string? Desc, decima
     string? PaidTo, string? Notes, string? ItemId, bool Undo = false);
 public sealed record ListingBody(string? Name, string? Category, decimal Qty, string? Unit, decimal Price,
     string? Desc, string? Loc, string? Phone, string? Photo, string? Status, bool Undo = false);
-public sealed record OrderBody(decimal Qty, string? BuyerName = null, string? DeliveryAddress = null, string? DeliveryDate = null);
+public sealed record OrderBody(decimal Qty, string? BuyerName = null, string? DeliveryAddress = null);
 public sealed record PurchaseBody(string? Status, string? DeliveryDate, string? DeliveryAddress);
 public sealed record ProfileBody(string? Name, string? Farm, string? Phone, string? Loc);
 public sealed record ForgotQuestionBody(string? Username);

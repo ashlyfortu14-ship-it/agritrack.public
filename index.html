@@ -659,9 +659,10 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
 .cart-summary .btn { margin-left: auto; }
 .checkout-form { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 4px; display: flex; flex-direction: column; gap: 10px; }
 .checkout-form h4 { font-size: 13px; letter-spacing: -.2px; }
-.checkout-grid { display: grid; grid-template-columns: 1.2fr 2fr 1fr; gap: 10px; }
+.checkout-grid { display: grid; grid-template-columns: 1.2fr 2fr; gap: 10px; }
 .checkout-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--muted); font-weight: 600; }
 .checkout-grid input { padding: 9px 11px; border-radius: 9px; border: 1px solid var(--line); font: inherit; font-size: 13px; color: var(--ink); background: #fff; }
+.checkout-eta { margin-top: 10px; font-size: 12.5px; color: var(--muted); }
 .orders-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
 .order-card { border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 5px; }
 .order-head { display: flex; align-items: center; justify-content: space-between; }
@@ -1088,8 +1089,8 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
           <div class="checkout-grid">
             <label>Name of buyer<input type="text" id="co-name" maxlength="100" placeholder="Who is ordering?"></label>
             <label>Deliver to<input type="text" id="co-addr" maxlength="255" placeholder="Barangay, town, landmark"></label>
-            <label>Delivery date<input type="date" id="co-date"></label>
           </div>
+          <p class="checkout-eta">Estimated delivery: 3–7 days after you check out.</p>
         </div>
         <div class="cart-summary">
           <div><small>Items</small><b id="cart-count-label">0 items</b></div>
@@ -1384,6 +1385,14 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
   const num = (n) => Number(n).toLocaleString('en-PH', { maximumFractionDigits: 2 });
   const parseDay = (iso) => new Date(iso + 'T00:00:00');
   const fmtDate = (iso) => parseDay(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const etaRange = (iso) => {
+    const start = parseDay(iso);
+    if (Number.isNaN(start.getTime())) return '';
+    const a = new Date(start); a.setDate(a.getDate() + 3);
+    const b = new Date(start); b.setDate(b.getDate() + 7);
+    const label = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `${label(a)} – ${label(b)}`;
+  };
   const fmtStamp = (iso) => {
     const d = new Date(iso);
     const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -1490,32 +1499,25 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     badge.textContent = n;
     badge.hidden = n === 0;
   }
-  const todayISO = () => {
-    const d = new Date();
-    const p = (n) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-  };
   const checkoutKey = () => 'agritrack-delivery:' + (session ? session.username : 'guest');
   function loadCheckout() {
     let saved = {};
     try { saved = JSON.parse(localStorage.getItem(checkoutKey()) || '{}') || {}; } catch (e) { saved = {}; }
     $('#co-name').value = saved.name || session.name || '';
     $('#co-addr').value = saved.address || session.loc || '';
-    $('#co-date').value = saved.date || todayISO();
   }
   function checkoutDetails() {
     return {
       buyerName: $('#co-name').value.trim(),
       deliveryAddress: $('#co-addr').value.trim(),
-      deliveryDate: $('#co-date').value,
     };
   }
   function saveCheckout(d) {
     try {
-      localStorage.setItem(checkoutKey(), JSON.stringify({ name: d.buyerName, address: d.deliveryAddress, date: d.deliveryDate }));
+      localStorage.setItem(checkoutKey(), JSON.stringify({ name: d.buyerName, address: d.deliveryAddress }));
     } catch (e) { /* ignore */ }
   }
-  ['#co-name', '#co-addr', '#co-date'].forEach((sel) =>
+  ['#co-name', '#co-addr'].forEach((sel) =>
     $(sel).addEventListener('change', () => saveCheckout(checkoutDetails())));
 
   async function reload() {
@@ -2441,7 +2443,6 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     const details = checkoutDetails();
     if (!details.buyerName) { toast('Enter the name of the person ordering.'); $('#co-name').focus(); return; }
     if (!details.deliveryAddress) { toast('Enter where to deliver the order.'); $('#co-addr').focus(); return; }
-    if (!details.deliveryDate) { toast('Pick a delivery date.'); $('#co-date').focus(); return; }
     saveCheckout(details);
     const btn = $('#checkout-btn');
     const label = btn.textContent;
@@ -2477,8 +2478,8 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     if (placed) {
       show('orders');
       toast(failed.length
-        ? `${placed} order${placed === 1 ? '' : 's'} placed (${peso(spent)}). ${failed.length} item${failed.length === 1 ? '' : 's'} could not be ordered.`
-        : `Order placed: ${peso(spent)}. Thank you!`);
+        ? `${placed} order${placed === 1 ? '' : 's'} placed (${peso(spent)}). ${failed.length} item${failed.length === 1 ? '' : 's'} could not be ordered. Estimated delivery in 3–7 days.`
+        : `Order placed: ${peso(spent)}. Estimated delivery in 3–7 days. Thank you!`);
     } else {
       btn.disabled = false;
       renderCart();
@@ -2506,9 +2507,11 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
         <b>${esc(o.crop)}</b>
         <p>${num(o.qty)} ${esc(o.unit)} · ${peso(o.amt)}</p>
         <small>${esc(o.farm || o.seller || 'AgriTrack farmer')} · ${fmtDate(o.date)}</small>
-        ${o.deliveryDate || o.deliveryAddress
-          ? `<small>${o.deliveryDate ? `Deliver ${fmtDate(o.deliveryDate)}` : 'Delivery'}${o.deliveryAddress ? ` · ${esc(o.deliveryAddress)}` : ''}</small>`
-          : ''}
+        ${o.deliveryDate
+          ? `<small>Deliver ${fmtDate(o.deliveryDate)}${o.deliveryAddress ? ` · ${esc(o.deliveryAddress)}` : ''}</small>`
+          : o.status === 'Cancelled'
+            ? ''
+            : `<small>Estimated delivery: 3–7 days · ${etaRange(o.date)}</small>${o.deliveryAddress ? `<small>Deliver to ${esc(o.deliveryAddress)}</small>` : ''}`}
         ${!o.status || o.status === 'Pending' || o.status === 'Out for delivery'
           ? `<button class="btn btn-sm btn-ghost order-cancel" type="button" data-cancel="${esc(o.id)}">Cancel order</button>`
           : ''}
@@ -2582,6 +2585,9 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
           <button class="btn btn-sm btn-primary" type="button" data-p-save="${esc(p.id)}">Save</button>
         </div>
         <small class="order-id">Ordered ${fmtDate(p.date)}</small>
+        ${!p.deliveryDate && p.status !== 'Cancelled'
+          ? `<small class="order-id">Estimated delivery: 3–7 days · ${etaRange(p.date)}</small>`
+          : ''}
       </article>`).join('')
       : '<p class="empty">No buyer orders yet. Orders placed from the Marketplace will appear here with delivery details.</p>';
     const open = purchases.filter((p) => p.status !== 'Delivered' && p.status !== 'Cancelled').length;
