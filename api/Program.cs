@@ -810,6 +810,68 @@ app.MapGet("/api/orders", async (HttpContext ctx) =>
     return Results.Ok(await LoadBuyerOrdersAsync(conn, uid.Value));
 });
 
+app.MapPost("/api/orders/{id}/cancel", async (string id, HttpContext ctx) =>
+{
+    if (!db.Ready) return DbDown();
+    var uid = CurrentUid(ctx);
+    if (uid is null) return NotSignedIn();
+    if (!long.TryParse(id, out var saleId)) return Results.NotFound();
+
+    await using var conn = await db.OpenAsync();
+    await using var tx = await conn.BeginTransactionAsync();
+
+    long ownerId, buyerId;
+    long? listingId;
+    decimal qty;
+    string crop, unit, status;
+    await using (var sel = conn.CreateCommand())
+    {
+        sel.Transaction = tx;
+        sel.CommandText = """
+            SELECT user_id, buyer_id, listing_id, crop_name, quantity, unit, delivery_status
+            FROM sales WHERE sale_id = @id FOR UPDATE
+            """;
+        sel.Parameters.AddWithValue("@id", saleId);
+        await using var r = await sel.ExecuteReaderAsync();
+        if (!await r.ReadAsync()) { await tx.RollbackAsync(); return Results.NotFound(); }
+        ownerId = r.GetInt64(r.GetOrdinal("user_id"));
+        buyerId = r.IsDBNull(r.GetOrdinal("buyer_id")) ? 0 : r.GetInt64(r.GetOrdinal("buyer_id"));
+        listingId = r.IsDBNull(r.GetOrdinal("listing_id")) ? null : r.GetInt64(r.GetOrdinal("listing_id"));
+        crop = r.GetString(r.GetOrdinal("crop_name"));
+        qty = r.GetDecimal(r.GetOrdinal("quantity"));
+        unit = r.IsDBNull(r.GetOrdinal("unit")) ? "" : r.GetString(r.GetOrdinal("unit"));
+        status = r.IsDBNull(r.GetOrdinal("delivery_status")) ? "Pending" : r.GetString(r.GetOrdinal("delivery_status"));
+        await r.DisposeAsync();
+    }
+
+    if (buyerId != uid.Value) { await tx.RollbackAsync(); return Results.NotFound(); }
+    if (status == "Delivered")
+    {
+        await tx.RollbackAsync();
+        return Results.Json(new { error = "Delivered orders can't be cancelled." }, statusCode: 400);
+    }
+    if (status == "Cancelled")
+    {
+        await tx.RollbackAsync();
+        return Results.Json(new { error = "This order is already cancelled." }, statusCode: 400);
+    }
+
+    if (listingId is not null) await RestoreListingStockAsync(conn, tx, listingId.Value, qty);
+
+    await using (var upd = conn.CreateCommand())
+    {
+        upd.Transaction = tx;
+        upd.CommandText = "UPDATE sales SET delivery_status = 'Cancelled' WHERE sale_id = @id";
+        upd.Parameters.AddWithValue("@id", saleId);
+        await upd.ExecuteNonQueryAsync();
+    }
+    await LogActivityAsync(conn, tx, ownerId, "orange",
+        $"Order cancelled: {Num(qty)} {unit} of {crop}");
+
+    await tx.CommitAsync();
+    return Results.Ok(new { status = "Cancelled" });
+});
+
 /* ---------- Purchases (buyer orders received by the farmer) ---------- */
 
 app.MapGet("/api/purchases", async (HttpContext ctx) =>
@@ -845,18 +907,52 @@ app.MapPut("/api/purchases/{id}", async (string id, HttpContext ctx, PurchaseBod
     if (address.Length > 255) address = address[..255];
 
     await using var conn = await db.OpenAsync();
-    await using var cmd = conn.CreateCommand();
-    cmd.CommandText = """
-        UPDATE sales SET delivery_status = @s, delivery_date = @d, delivery_address = @a
-        WHERE sale_id = @id AND user_id = @u AND buyer_id IS NOT NULL
-        """;
-    cmd.Parameters.AddWithValue("@s", status);
-    cmd.Parameters.AddWithValue("@d", (object?)deliveryDate ?? DBNull.Value);
-    cmd.Parameters.AddWithValue("@a", address.Length == 0 ? (object)DBNull.Value : address);
-    cmd.Parameters.AddWithValue("@id", saleId);
-    cmd.Parameters.AddWithValue("@u", uid.Value);
-    if (await cmd.ExecuteNonQueryAsync() == 0) return Results.NotFound();
+    await using var tx = await conn.BeginTransactionAsync();
 
+    long? listingId;
+    decimal qty;
+    string previous;
+    await using (var sel = conn.CreateCommand())
+    {
+        sel.Transaction = tx;
+        sel.CommandText = """
+            SELECT listing_id, quantity, delivery_status FROM sales
+            WHERE sale_id = @id AND user_id = @u AND buyer_id IS NOT NULL FOR UPDATE
+            """;
+        sel.Parameters.AddWithValue("@id", saleId);
+        sel.Parameters.AddWithValue("@u", uid.Value);
+        await using var r = await sel.ExecuteReaderAsync();
+        if (!await r.ReadAsync()) { await tx.RollbackAsync(); return Results.NotFound(); }
+        listingId = r.IsDBNull(r.GetOrdinal("listing_id")) ? null : r.GetInt64(r.GetOrdinal("listing_id"));
+        qty = r.GetDecimal(r.GetOrdinal("quantity"));
+        previous = r.IsDBNull(r.GetOrdinal("delivery_status")) ? "Pending" : r.GetString(r.GetOrdinal("delivery_status"));
+        await r.DisposeAsync();
+    }
+
+    if (previous == "Cancelled" && status != "Cancelled")
+    {
+        await tx.RollbackAsync();
+        return Results.Json(new { error = "Cancelled orders can't be reopened." }, statusCode: 400);
+    }
+    if (previous != "Cancelled" && status == "Cancelled" && listingId is not null)
+        await RestoreListingStockAsync(conn, tx, listingId.Value, qty);
+
+    await using (var cmd = conn.CreateCommand())
+    {
+        cmd.Transaction = tx;
+        cmd.CommandText = """
+            UPDATE sales SET delivery_status = @s, delivery_date = @d, delivery_address = @a
+            WHERE sale_id = @id AND user_id = @u
+            """;
+        cmd.Parameters.AddWithValue("@s", status);
+        cmd.Parameters.AddWithValue("@d", (object?)deliveryDate ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@a", address.Length == 0 ? (object)DBNull.Value : address);
+        cmd.Parameters.AddWithValue("@id", saleId);
+        cmd.Parameters.AddWithValue("@u", uid.Value);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    await tx.CommitAsync();
     return Results.Ok(new
     {
         status,
@@ -1169,6 +1265,25 @@ static async Task LogActivityAsync(MySqlConnection conn, MySqlTransaction? tx, l
     await cmd.ExecuteNonQueryAsync();
 }
 
+static async Task RestoreListingStockAsync(MySqlConnection conn, MySqlTransaction tx, long listingId, decimal qty)
+{
+    await using (var add = conn.CreateCommand())
+    {
+        add.Transaction = tx;
+        add.CommandText = "UPDATE listings SET quantity = quantity + @q WHERE listing_id = @id";
+        add.Parameters.AddWithValue("@q", qty);
+        add.Parameters.AddWithValue("@id", listingId);
+        await add.ExecuteNonQueryAsync();
+    }
+    await using (var open = conn.CreateCommand())
+    {
+        open.Transaction = tx;
+        open.CommandText = "UPDATE listings SET status = 'available' WHERE listing_id = @id AND status = 'sold' AND quantity > 0";
+        open.Parameters.AddWithValue("@id", listingId);
+        await open.ExecuteNonQueryAsync();
+    }
+}
+
 static async Task InsertSaleAsync(MySqlConnection conn, MySqlTransaction tx, long uid, long listingId,
     string crop, decimal qty, string unit, decimal amount, string buyer, long? buyerId = null,
     string? deliveryAddress = null, DateTime? deliveryDate = null)
@@ -1288,7 +1403,7 @@ static async Task<List<ExpenseDto>> LoadExpensesAsync(MySqlConnection conn, long
 static async Task<decimal> LoadSalesTotalAsync(MySqlConnection conn, long uid)
 {
     await using var cmd = conn.CreateCommand();
-    cmd.CommandText = "SELECT COALESCE(SUM(amount), 0) FROM sales WHERE user_id = @u";
+    cmd.CommandText = "SELECT COALESCE(SUM(amount), 0) FROM sales WHERE user_id = @u AND delivery_status <> 'Cancelled'";
     cmd.Parameters.AddWithValue("@u", uid);
     return Convert.ToDecimal(await cmd.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
 }
@@ -1299,7 +1414,8 @@ static async Task<List<SaleDto>> LoadSalesLogAsync(MySqlConnection conn, long ui
     await using var cmd = conn.CreateCommand();
     cmd.CommandText = """
         SELECT sale_id, sale_date, crop_name, quantity, unit, amount, buyer_name, is_legacy
-        FROM sales WHERE user_id = @u ORDER BY sale_date DESC, sale_id DESC LIMIT 100
+        FROM sales WHERE user_id = @u AND delivery_status <> 'Cancelled'
+        ORDER BY sale_date DESC, sale_id DESC LIMIT 100
         """;
     cmd.Parameters.AddWithValue("@u", uid);
     await using var r = await cmd.ExecuteReaderAsync();
