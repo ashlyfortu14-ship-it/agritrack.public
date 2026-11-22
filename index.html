@@ -225,13 +225,6 @@ select, .form-grid input, .form-grid textarea {
   border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; background: #fff; font-size: 13px; outline: 0; width: 100%;
 }
 .filters select { min-width: 170px; }
-.filters input[type="date"], .filters input[type="number"] {
-  border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; background: #fff; font-size: 13px; outline: 0;
-}
-.filters input[type="date"]:focus, .filters input[type="number"]:focus { border-color: var(--green-600); box-shadow: 0 0 0 3px rgba(26,127,88,.12); }
-.amt-filter { display: flex; gap: 6px; }
-.filters .amt-filter select { min-width: 0; width: 68px; }
-.filters .amt-filter input { width: 120px; }
 select:focus, .form-grid input:focus, .form-grid textarea:focus { border-color: var(--green-600); box-shadow: 0 0 0 3px rgba(26,127,88,.12); }
 
 /* ===== Tables ===== */
@@ -968,20 +961,8 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
         <div class="stat"><span class="stat-ic blue"><svg><use href="#i-leaf"/></svg></span><div><small>Top Category</small><b id="es-top">—</b></div></div>
       </div>
       <div class="filters">
-        <label>Date Range<select id="exp-date"></select></label>
-        <label>Exact Date<input type="date" id="exp-date-exact" aria-label="Exact date"></label>
+        <label>Date<select id="exp-date"></select></label>
         <label>Category<select id="exp-cat"><option value="all">All Categories</option></select></label>
-        <label>Payment<select id="exp-pay"><option value="all">All Payments</option></select></label>
-        <label>Amount
-          <span class="amt-filter">
-            <select id="exp-op" aria-label="Amount comparison">
-              <option value="ge">≥</option><option value="le">≤</option><option value="eq">=</option><option value="gt">&gt;</option><option value="lt">&lt;</option>
-            </select>
-            <input type="number" id="exp-amt" min="0" step="0.01" placeholder="0.00" aria-label="Amount">
-          </span>
-        </label>
-        <label class="search grow"><svg><use href="#i-search"/></svg><input type="search" id="exp-search" placeholder="Search description, paid to, notes..."></label>
-        <button class="btn btn-outline" type="button" id="exp-clear-filters">Clear Filters</button>
       </div>
       <div class="panel table-wrap">
         <table class="table exp-table">
@@ -1742,12 +1723,6 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     const cats = [...new Set(data.expenses.map((x) => String(x.cat || '').trim()).filter(Boolean))].sort();
     catSel.innerHTML = '<option value="all">All Categories</option>' + cats.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
     catSel.value = cats.includes(currentCat) ? currentCat : 'all';
-
-    const paySel = $('#exp-pay');
-    const currentPay = paySel.value || 'all';
-    const pays = [...new Set(data.expenses.map((x) => String(x.pay || '').trim()).filter(Boolean))].sort();
-    paySel.innerHTML = '<option value="all">All Payments</option>' + pays.map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
-    paySel.value = pays.includes(currentPay) ? currentPay : 'all';
   }
 
   function renderExpSummary() {
@@ -1767,28 +1742,9 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
   function renderExpenses() {
     renderExpSummary();
     const d = $('#exp-date').value;
-    const exact = $('#exp-date-exact').value;
     const c = $('#exp-cat').value;
-    const p = $('#exp-pay').value;
-    const q = $('#exp-search').value.trim().toLowerCase();
-    const amtRaw = $('#exp-amt').value.trim();
-    const amt = amtRaw === '' ? null : Number(amtRaw);
-    const op = $('#exp-op').value;
-    const amountMatches = (v) => {
-      if (amt === null || !Number.isFinite(amt)) return true;
-      if (op === 'eq') return Math.abs(v - amt) < 0.005;
-      if (op === 'gt') return v > amt;
-      if (op === 'lt') return v < amt;
-      if (op === 'le') return v <= amt;
-      return v >= amt;
-    };
     const rows = data.expenses
-      .filter((x) => (d === 'all' || monthKey(x.date) === d)
-        && (!exact || x.date === exact)
-        && (c === 'all' || x.cat === c)
-        && (p === 'all' || (x.pay || '') === p)
-        && amountMatches(x.amt)
-        && (!q || [x.desc, x.paidTo, x.notes, x.cat, x.pay].some((v) => String(v || '').toLowerCase().includes(q))))
+      .filter((x) => (d === 'all' || monthKey(x.date) === d) && (c === 'all' || x.cat === c))
       .sort(sorter(sortState.exp));
     $('#exp-body').innerHTML = rows.length ? rows.map((x) => {
       const sub = [x.itemId ? 'From inventory' : '', x.paidTo ? `Paid to ${x.paidTo}` : ''].filter(Boolean).join(' · ');
@@ -1831,26 +1787,8 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     updateExpNote();
     $('#exp-modal').showModal();
   }
-  $('#exp-date').addEventListener('change', () => {
-    if ($('#exp-date').value !== 'all') $('#exp-date-exact').value = '';
-    renderExpenses();
-  });
-  $('#exp-date-exact').addEventListener('change', () => {
-    if ($('#exp-date-exact').value) $('#exp-date').value = 'all';
-    renderExpenses();
-  });
-  ['#exp-cat', '#exp-pay', '#exp-op'].forEach((s) => $(s).addEventListener('change', renderExpenses));
-  ['#exp-search', '#exp-amt'].forEach((s) => $(s).addEventListener('input', renderExpenses));
-  $('#exp-clear-filters').addEventListener('click', () => {
-    $('#exp-date').value = 'all';
-    $('#exp-date-exact').value = '';
-    $('#exp-cat').value = 'all';
-    $('#exp-pay').value = 'all';
-    $('#exp-op').value = 'ge';
-    $('#exp-amt').value = '';
-    $('#exp-search').value = '';
-    renderExpenses();
-  });
+  $('#exp-date').addEventListener('change', renderExpenses);
+  $('#exp-cat').addEventListener('change', renderExpenses);
   $('#e-amt').addEventListener('input', updateExpNote);
 
   $('#exp-form').addEventListener('submit', async (e) => {
@@ -2316,11 +2254,6 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     const bar = e.target.closest('[data-month]');
     if (!bar) return;
     $('#exp-cat').value = 'all';
-    $('#exp-pay').value = 'all';
-    $('#exp-search').value = '';
-    $('#exp-date-exact').value = '';
-    $('#exp-op').value = 'ge';
-    $('#exp-amt').value = '';
     $('#exp-date').value = bar.dataset.month;
     show('expenses');
     renderExpenses();
