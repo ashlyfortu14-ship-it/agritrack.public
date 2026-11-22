@@ -1050,7 +1050,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
           <div class="form-actions full"><button class="btn btn-primary" type="submit">Save recovery question</button></div>
         </form>
         <hr>
-        <div class="danger">
+        <div class="danger" id="reset-data-card">
           <div><b>Reset demo data</b><small>Restores the sample inventory, expenses and listings.</small></div>
           <button class="btn btn-danger" id="reset-data">Reset data</button>
         </div>
@@ -1412,8 +1412,8 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
   function applyRole() {
     const buyer = session.role === 'buyer';
     $$('.side-nav .nav-item').forEach((b) => { b.hidden = buyer && b.dataset.view !== 'marketplace'; });
-    $('#nav-settings').hidden = buyer;
     $('#side-logout').hidden = !buyer;
+    $('#reset-data-card').hidden = buyer;
     $$('#bottom-nav button').forEach((b) => { b.hidden = buyer && b.dataset.view !== 'marketplace'; });
     $('#bottom-nav').classList.toggle('cols-1', buyer);
     $('#add-listing').hidden = buyer;
@@ -1444,7 +1444,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     newlisting: 'Add New Listing', reports: 'Reports', settings: 'Settings',
   };
   function show(view) {
-    if (session && session.role === 'buyer' && view !== 'marketplace') view = 'marketplace';
+    if (session && session.role === 'buyer' && view !== 'marketplace' && view !== 'settings') view = 'marketplace';
     $$('.view').forEach((v) => (v.hidden = v.id !== 'view-' + view));
     const navView = view === 'newlisting' ? 'marketplace' : view;
     $$('.nav-item, .bottom-nav button').forEach((b) => b.classList.toggle('active', b.dataset.view === navView));
@@ -1459,7 +1459,6 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
 
   const openProfile = () => {
     if (!session) return;
-    if (session.role === 'buyer') { toast('Profile settings are available on farmer accounts.'); return; }
     show('settings');
   };
   $('#user-chip').addEventListener('click', openProfile);
