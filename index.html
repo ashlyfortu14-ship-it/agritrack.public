@@ -710,6 +710,22 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
 }
 .modal-x:hover { background: var(--green-50); color: var(--green-700); }
 .modal-x svg { width: 16px; height: 16px; }
+
+/* Switch account */
+.switch-list { display: flex; flex-direction: column; gap: 8px; }
+.switch-item {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: #fff;
+  transition: border-color .14s, background .14s;
+}
+.switch-item:hover:not(:disabled), .switch-item.selected { border-color: var(--green-600); background: var(--green-50); }
+.switch-item:disabled { cursor: default; }
+.switch-item .avatar { width: 34px; height: 34px; font-size: 12px; }
+.switch-item b { display: block; font-size: 13.5px; line-height: 1.25; }
+.switch-item small { display: block; color: var(--muted); font-size: 11.5px; }
+.switch-item .sw-tag { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--green-700); }
+.switch-picked { background: var(--green-50); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font-size: 12.5px; color: var(--muted); }
+.switch-picked b { color: var(--ink); }
 @keyframes modal-in {
   from { opacity: 0; transform: translateY(10px) scale(.985); }
   to { opacity: 1; transform: none; }
@@ -941,6 +957,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     </nav>
     <div class="side-foot">
       <button class="nav-item" id="nav-settings" data-view="settings"><svg><use href="#i-gear"/></svg>Settings</button>
+      <button class="nav-item" id="side-switch"><svg><use href="#i-user"/></svg>Switch account</button>
       <button class="nav-item" id="side-logout" hidden><svg><use href="#i-logout"/></svg>Log out</button>
     </div>
   </aside>
@@ -1202,6 +1219,10 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
           <button class="btn btn-danger" id="reset-data">Reset data</button>
         </div>
         <div class="danger">
+          <div><b>Switch account</b><small>Sign in to another farmer or buyer account saved on this device.</small></div>
+          <button class="btn btn-outline" id="switch-account">Switch account</button>
+        </div>
+        <div class="danger">
           <div><b>Log out</b><small>You can log back in anytime.</small></div>
           <button class="btn btn-outline" id="logout">Log out</button>
         </div>
@@ -1304,6 +1325,22 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     <div class="form-actions full">
       <button type="button" class="btn btn-ghost" id="forgot-back">Back</button>
       <button type="submit" class="btn btn-primary">Reset password</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="switch-modal" class="modal">
+  <button type="button" class="modal-x" data-close aria-label="Close"><svg><use href="#i-x"/></svg></button>
+  <form id="switch-form" class="form-grid">
+    <h3 class="full">Switch account</h3>
+    <p class="full modal-note">Pick an account that has signed in on this device, then enter its password. Passwords are never saved.</p>
+    <div class="switch-list full" id="switch-list"></div>
+    <p class="switch-picked full" id="switch-picked" hidden></p>
+    <label class="full">Password<input type="password" id="switch-pass" autocomplete="current-password" placeholder="Password for the selected account"></label>
+    <p class="form-error full" id="switch-error" hidden></p>
+    <div class="form-actions full">
+      <button type="button" class="btn btn-ghost" id="switch-other">Use another account</button>
+      <button type="submit" class="btn btn-primary">Switch</button>
     </div>
   </form>
 </dialog>
@@ -1604,6 +1641,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
 
   async function enterApp() {
     await reload();
+    rememberAccount(session);
     loadCart();
     if (session.role === 'buyer') loadCheckout();
     if (session.role !== 'buyer') loadPurchases().catch(() => {});
@@ -1662,6 +1700,97 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
   }
   $('#logout').addEventListener('click', logout);
   $('#side-logout').addEventListener('click', logout);
+
+  /* ---------- Switch account ---------- */
+  const ACCOUNTS_KEY = 'agritrack-accounts';
+  function savedAccounts() {
+    try {
+      const list = JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || '[]');
+      return Array.isArray(list) ? list.filter((a) => a && a.username) : [];
+    } catch (e) { return []; }
+  }
+  function rememberAccount(u) {
+    if (!u || !u.username) return;
+    const list = savedAccounts().filter((a) => a.username !== u.username);
+    list.unshift({ username: u.username, name: u.name || '', role: u.role || 'farmer' });
+    try { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(list.slice(0, 6))); } catch (e) { /* ignore */ }
+  }
+
+  const switchModal = $('#switch-modal');
+  let switchTarget = null;
+
+  function renderSwitchAccounts() {
+    const list = $('#switch-list');
+    list.innerHTML = '';
+    const accounts = savedAccounts();
+    if (!accounts.length) {
+      list.innerHTML = '<p class="modal-note">No saved accounts yet. Log in once with another account and it will appear here.</p>';
+      return;
+    }
+    const current = session ? session.username : '';
+    accounts.forEach((a) => {
+      const isCurrent = a.username === current;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'switch-item' + (isCurrent ? ' selected' : '');
+      btn.dataset.username = a.username;
+      btn.innerHTML = `<span class="avatar">${esc(initials(a.name || a.username))}</span>
+        <span><b>${esc(a.name || a.username)}</b><small>${esc(a.username)} · ${a.role === 'buyer' ? 'Buyer' : 'Farmer'}</small></span>
+        ${isCurrent ? '<span class="sw-tag">Current</span>' : ''}`;
+      if (isCurrent) btn.disabled = true;
+      else btn.addEventListener('click', () => selectSwitchAccount(a));
+      list.append(btn);
+    });
+  }
+
+  function selectSwitchAccount(a) {
+    switchTarget = a;
+    $('#switch-picked').innerHTML = `Signing in as <b>${esc(a.name || a.username)}</b> (${esc(a.username)})`;
+    $('#switch-picked').hidden = false;
+    $('#switch-error').hidden = true;
+    $('#switch-pass').value = '';
+    $('#switch-pass').focus();
+    $$('#switch-list .switch-item').forEach((el) => el.classList.toggle('selected', el.dataset.username === a.username));
+  }
+
+  function openSwitch() {
+    if (!session) return;
+    switchTarget = null;
+    $('#switch-form').reset();
+    $('#switch-picked').hidden = true;
+    $('#switch-error').hidden = true;
+    renderSwitchAccounts();
+    switchModal.showModal();
+  }
+  $('#side-switch').addEventListener('click', openSwitch);
+  $('#switch-account').addEventListener('click', openSwitch);
+  $('#switch-other').addEventListener('click', () => { switchModal.close(); logout(); });
+  $('#switch-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = $('#switch-error');
+    err.hidden = true;
+    if (!switchTarget) { err.textContent = 'Pick an account first.'; err.hidden = false; return; }
+    const pass = $('#switch-pass').value;
+    if (!pass) { err.textContent = `Enter the password for ${switchTarget.username}.`; err.hidden = false; return; }
+    const btn = e.target.querySelector('button[type="submit"]');
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Switching...';
+    try {
+      await api('/login', 'POST', { username: switchTarget.username, password: pass });
+      const name = switchTarget.name || switchTarget.username;
+      switchModal.close();
+      await enterApp();
+      toast('Switched to ' + name + '.');
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.hidden = false;
+      $('#switch-pass').select();
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
+  });
 
   /* ---------- Navigation ---------- */
   const TITLES = {
