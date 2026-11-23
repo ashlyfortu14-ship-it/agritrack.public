@@ -76,6 +76,7 @@ public sealed class Db
                 await MigrateSalesBuyerAsync(conn);
                 await MigrateSalesDeliveryAsync(conn);
                 await MigrateSalesReceivedAsync(conn);
+                await MigrateInventoryUnitsAsync(conn);
                 await SeedIfEmptyAsync(conn);
             }
 
@@ -213,6 +214,13 @@ public sealed class Db
         await cmd.ExecuteNonQueryAsync();
     }
 
+    private static async Task MigrateInventoryUnitsAsync(MySqlConnection conn)
+    {
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE inventory_items SET unit = 'pieces' WHERE unit = 'unit'";
+        await cmd.ExecuteNonQueryAsync();
+    }
+
     private static async Task SeedIfEmptyAsync(MySqlConnection conn)
     {
         await using (var check = conn.CreateCommand())
@@ -254,7 +262,7 @@ public sealed class Db
             ("Fertilizer", "Material", 10, "bags", "2025-04-08", "Agri Supply Store", 950, "Complete 14-14-14."),
             ("Tomato Seedlings", "Seedlings", 20, "sack", "2025-04-05", "Dela Cruz Nursery", 150, null),
             ("Organic Compost", "Material", 15, "bags", "2025-04-02", "Barangay Compost Hub", 320, null),
-            ("Water Pump", "Equipment", 1, "unit", "2025-03-28", "Mindoro Machinery", 8500, "2-inch gasoline pump."),
+            ("Water Pump", "Equipment", 1, "pieces", "2025-03-28", "Mindoro Machinery", 8500, "2-inch gasoline pump."),
         };
         foreach (var i in inventory)
         {
