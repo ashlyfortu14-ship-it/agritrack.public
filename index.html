@@ -923,6 +923,12 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
       <label class="input-icon">
         <svg><use href="#i-lock"/></svg>
         <input type="password" id="signup-pass" placeholder="Password (min. 6 characters)" minlength="6" required>
+        <button type="button" class="eye" id="toggle-signup-pass" aria-label="Show password"><svg><use href="#i-eye"/></svg></button>
+      </label>
+      <label class="input-icon">
+        <svg><use href="#i-lock"/></svg>
+        <input type="password" id="signup-pass2" placeholder="Confirm password" minlength="6" required>
+        <button type="button" class="eye" id="toggle-signup-pass2" aria-label="Show password"><svg><use href="#i-eye"/></svg></button>
       </label>
       <label class="input-icon">
         <svg><use href="#i-leaf"/></svg>
@@ -1570,10 +1576,11 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
   $$('.tab').forEach((t) => t.addEventListener('click', () => switchAuth(t.dataset.auth)));
   $$('[data-switch]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); switchAuth(a.dataset.switch); }));
 
-  $('#toggle-pass').addEventListener('click', () => {
-    const p = $('#login-pass');
-    p.type = p.type === 'password' ? 'text' : 'password';
-  });
+  [['#toggle-pass', '#login-pass'], ['#toggle-signup-pass', '#signup-pass'], ['#toggle-signup-pass2', '#signup-pass2']]
+    .forEach(([btn, input]) => $(btn).addEventListener('click', () => {
+      const p = $(input);
+      p.type = p.type === 'password' ? 'text' : 'password';
+    }));
   const forgotModal = $('#forgot-modal');
   function showForgotStep(step) {
     $('#forgot-step1').hidden = step !== 1;
@@ -1641,12 +1648,19 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     e.preventDefault();
     const err = $('#signup-error');
     err.hidden = true;
+    const pass = $('#signup-pass').value;
+    if (pass !== $('#signup-pass2').value) {
+      err.textContent = 'The two passwords do not match.';
+      err.hidden = false;
+      $('#signup-pass2').focus();
+      return;
+    }
     const role = $('#signup-role').value === 'buyer' ? 'buyer' : 'farmer';
     try {
       await api('/signup', 'POST', {
         name: $('#signup-name').value.trim(),
         username: $('#signup-user').value.trim().toLowerCase(),
-        password: $('#signup-pass').value,
+        password: pass,
         role,
       });
       await enterApp();
