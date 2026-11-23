@@ -278,6 +278,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { border-color: 
 .listing-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 28px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .form-grid label, .form-grid .lbl { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 500; }
+.auto-cat { font-size: 11px; font-weight: 500; color: var(--green-700); }
 .form-grid .lbl { margin-bottom: 5px; }
 .form-grid .full { grid-column: 1 / -1; }
 .form-grid h3 { font-size: 17px; font-weight: 600; }
@@ -1258,6 +1259,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
       <select id="i-cat">
         <option>Seeds</option><option>Seedlings</option><option>Material</option><option>Equipment</option><option>Produce</option>
       </select>
+      <small class="auto-cat" id="i-cat-auto" hidden>Suggested from the item name — change it if needed.</small>
     </label>
     <label>Date Added<input type="date" id="i-date" required></label>
     <label>Quantity<input type="number" id="i-qty" min="0" step="any" required></label>
@@ -1921,7 +1923,31 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
   }
 
   /* ---------- Inventory ---------- */
+  const CATEGORY_KEYWORDS = {
+    Seedlings: ['seedling', 'seedlings', 'sapling', 'saplings', 'punla', 'graft', 'grafts'],
+    Seeds: ['seed', 'seeds', 'binhi'],
+    Material: ['fertilizer', 'fertiliser', 'abono', 'compost', 'manure', 'mulch', 'pesticide', 'insecticide',
+      'herbicide', 'fungicide', 'chemical', 'chemicals', 'soil', 'lime', 'urea', 'pot', 'pots', 'tray', 'trays',
+      'twine', 'sack', 'sacks', 'plastic', 'feed', 'feeds', 'vitamin', 'vitamins', 'supplement', 'supplements'],
+    Equipment: ['tractor', 'plow', 'plough', 'harrow', 'sprayer', 'sprinkler', 'pump', 'hose', 'hoe', 'shovel',
+      'rake', 'machete', 'sickle', 'bolo', 'knife', 'tool', 'tools', 'machine', 'motor', 'thresher', 'dryer',
+      'wheelbarrow', 'cart', 'cultivator', 'dripper', 'net', 'nets'],
+    Produce: ['rice', 'palay', 'corn', 'mais', 'mango', 'banana', 'saging', 'tomato', 'kamatis', 'eggplant',
+      'talong', 'onion', 'sibuyas', 'garlic', 'bawang', 'cabbage', 'repolyo', 'carrot', 'karot', 'potato',
+      'patatas', 'cucumber', 'pipino', 'pepper', 'sili', 'coconut', 'niyog', 'calamansi', 'melon', 'watermelon',
+      'papaya', 'pineapple', 'squash', 'kalabasa', 'beans', 'monggo', 'peanut', 'peanuts', 'kamote', 'cassava',
+      'ginger', 'luya', 'okra', 'ampalaya', 'sayote', 'pechay', 'kangkong', 'fruit', 'fruits', 'vegetable',
+      'vegetables', 'veggies', 'harvest', 'harvests', 'crop', 'crops', 'produce', 'egg', 'eggs'],
+  };
+  function detectCategory(name) {
+    const words = new Set(String(name || '').toLowerCase().split(/[^a-z]+/).filter(Boolean));
+    for (const [cat, keys] of Object.entries(CATEGORY_KEYWORDS))
+      if (keys.some((k) => words.has(k))) return cat;
+    return null;
+  }
+
   let editingItem = null;
+  let catTouched = false;
   function renderInventory() {
     const q = $('#inv-search').value.trim().toLowerCase();
     const rows = data.inventory
@@ -1957,6 +1983,8 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     warn.textContent = '';
     $('#i-name').value = item ? item.name : '';
     $('#i-cat').value = item ? item.category : 'Seeds';
+    catTouched = !!item;
+    $('#i-cat-auto').hidden = true;
     $('#i-qty').value = item ? item.qty : '';
     $('#i-unit').value = item ? item.unit : 'kg';
     $('#i-date').value = item ? item.date : today();
@@ -1968,6 +1996,16 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     $('#item-modal').showModal();
   }
   $('#add-item').addEventListener('click', () => openItemModal());
+  $('#i-cat').addEventListener('change', () => {
+    catTouched = true;
+    $('#i-cat-auto').hidden = true;
+  });
+  $('#i-name').addEventListener('input', () => {
+    if (catTouched) return;
+    const cat = detectCategory($('#i-name').value);
+    $('#i-cat-auto').hidden = !cat;
+    if (cat) $('#i-cat').value = cat;
+  });
   $('#inv-search').addEventListener('input', renderInventory);
 
   $('#item-form').addEventListener('submit', async (e) => {
