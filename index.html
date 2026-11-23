@@ -930,6 +930,15 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
         <input type="password" id="signup-pass2" placeholder="Confirm password" minlength="6" required>
         <button type="button" class="eye" id="toggle-signup-pass2" aria-label="Show password"><svg><use href="#i-eye"/></svg></button>
       </label>
+      <p class="modal-note"><b>For forgot password:</b> if you forget your password, we will ask this question before you can set a new one. Answers are not case-sensitive.</p>
+      <label class="input-icon">
+        <svg><use href="#i-lock"/></svg>
+        <input type="text" id="signup-question" placeholder="Recovery question (e.g. What is your farm's name?)" maxlength="120" minlength="5" required>
+      </label>
+      <label class="input-icon">
+        <svg><use href="#i-lock"/></svg>
+        <input type="text" id="signup-answer" placeholder="Answer (write it down somewhere safe)" maxlength="100" minlength="2" required>
+      </label>
       <label class="input-icon">
         <svg><use href="#i-leaf"/></svg>
         <select id="signup-role" aria-label="Account type">
@@ -1228,14 +1237,6 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
           <div class="form-actions full"><button class="btn btn-primary" type="submit">Update password</button></div>
         </form>
         <hr>
-        <form id="security-form" class="form-grid">
-          <h4 class="full">Password recovery</h4>
-          <p class="full modal-note">If you forget your password, this question will be asked before you can set a new one. Answers are not case-sensitive.</p>
-          <label class="full">Recovery question<input type="text" id="sec-question" maxlength="120" placeholder="e.g. What is the name of your farm?" required></label>
-          <label class="full">Answer<input type="text" id="sec-answer" maxlength="100" placeholder="Write it down somewhere safe" required></label>
-          <div class="form-actions full"><button class="btn btn-primary" type="submit">Save recovery question</button></div>
-        </form>
-        <hr>
         <div class="danger" id="reset-data-card">
           <div><b>Reset demo data</b><small>Restores the sample inventory, expenses and listings.</small></div>
           <button class="btn btn-danger" id="reset-data">Reset data</button>
@@ -1330,7 +1331,7 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
   <button type="button" class="modal-x" data-close aria-label="Close"><svg><use href="#i-x"/></svg></button>
   <div id="forgot-step1" class="form-grid">
     <h3 class="full">Reset your password</h3>
-    <p class="full modal-note">Enter your username and we will show the recovery question you saved under Settings.</p>
+    <p class="full modal-note">Enter your username and we will show the recovery question you set up when you created your account.</p>
     <label class="full">Username<input type="text" id="forgot-user" autocomplete="username"></label>
     <p class="form-error full" id="forgot-error1" hidden></p>
     <div class="form-actions full">
@@ -1661,6 +1662,8 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
         name: $('#signup-name').value.trim(),
         username: $('#signup-user').value.trim().toLowerCase(),
         password: pass,
+        question: $('#signup-question').value.trim(),
+        answer: $('#signup-answer').value.trim(),
         role,
       });
       await enterApp();
@@ -1686,8 +1689,6 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     $('#set-phone').value = session.phone;
     $('#set-loc').value = session.loc;
     $('#set-role').textContent = session.role === 'buyer' ? 'Buyer' : 'Farmer';
-    $('#sec-question').value = session.recoveryQuestion || '';
-    $('#sec-answer').value = '';
     $('#password-form').reset();
     $('#cp-error').hidden = true;
     applyRole();
@@ -2868,17 +2869,6 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
       renderMarketplace();
       renderDashboard();
       toast('Settings saved.');
-    } catch (ex) {
-      toast(ex.message);
-    }
-  });
-  $('#security-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    try {
-      await api('/security', 'PUT', { question: $('#sec-question').value.trim(), answer: $('#sec-answer').value.trim() });
-      session.recoveryQuestion = $('#sec-question').value.trim();
-      $('#sec-answer').value = '';
-      toast('Recovery question saved.');
     } catch (ex) {
       toast(ex.message);
     }

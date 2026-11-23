@@ -89,6 +89,8 @@ app.MapPost("/api/signup", async (HttpContext ctx, SignupBody body) =>
     var name = (body.Name ?? "").Trim();
     var username = (body.Username ?? "").Trim().ToLowerInvariant();
     var password = body.Password ?? "";
+    var question = (body.Question ?? "").Trim();
+    var answer = NormalizeAnswer(body.Answer ?? "");
     var role = body.Role == "buyer" ? "buyer" : "farmer";
 
     if (name.Length == 0) return Results.Json(new { error = "Enter your full name." }, statusCode: 400);
@@ -96,6 +98,10 @@ app.MapPost("/api/signup", async (HttpContext ctx, SignupBody body) =>
         return Results.Json(new { error = "Username must be 3-50 characters: letters, numbers, . _ @ -" }, statusCode: 400);
     if (password.Length < 6)
         return Results.Json(new { error = "Password must be at least 6 characters." }, statusCode: 400);
+    if (question.Length < 5 || question.Length > 120)
+        return Results.Json(new { error = "Recovery question must be 5-120 characters." }, statusCode: 400);
+    if (answer.Length < 2 || answer.Length > 100)
+        return Results.Json(new { error = "Recovery answer must be 2-100 characters." }, statusCode: 400);
 
     await using var conn = await db.OpenAsync();
     await using (var exists = conn.CreateCommand())
@@ -109,14 +115,17 @@ app.MapPost("/api/signup", async (HttpContext ctx, SignupBody body) =>
     await using (var insert = conn.CreateCommand())
     {
         insert.CommandText = """
-            INSERT INTO users (username, password_hash, full_name, role, farm_name, location, phone)
-            VALUES (@u, @p, @n, @r, @farm, 'Bongabong, Oriental Mindoro', '')
+            INSERT INTO users (username, password_hash, full_name, role, farm_name, location, phone,
+                               recovery_question, recovery_answer_hash)
+            VALUES (@u, @p, @n, @r, @farm, 'Bongabong, Oriental Mindoro', '', @q, @a)
             """;
         insert.Parameters.AddWithValue("@u", username);
         insert.Parameters.AddWithValue("@p", Passwords.Hash(password));
         insert.Parameters.AddWithValue("@n", name);
         insert.Parameters.AddWithValue("@r", role);
         insert.Parameters.AddWithValue("@farm", role == "farmer" ? (object)$"{name} Farm" : DBNull.Value);
+        insert.Parameters.AddWithValue("@q", question);
+        insert.Parameters.AddWithValue("@a", Passwords.Hash(answer));
         await insert.ExecuteNonQueryAsync();
     }
 
@@ -170,7 +179,7 @@ app.MapPost("/api/forgot/question", async (ForgotQuestionBody b) =>
     exists.Parameters.AddWithValue("@u", username);
     if (Convert.ToInt64(await exists.ExecuteScalarAsync()) == 0)
         return Results.Json(new { error = "We could not find that username." }, statusCode: 404);
-    return Results.Json(new { error = "This account has no recovery question yet. Sign in, open Settings and set one first." }, statusCode: 409);
+    return Results.Json(new { error = "This account has no recovery question set up, so it cannot be reset this way." }, statusCode: 409);
 });
 
 app.MapPost("/api/forgot/reset", async (ForgotResetBody b) =>
@@ -199,7 +208,7 @@ app.MapPost("/api/forgot/reset", async (ForgotResetBody b) =>
         stored = r.IsDBNull(r.GetOrdinal("recovery_answer_hash")) ? null : r.GetString(r.GetOrdinal("recovery_answer_hash"));
     }
     if (stored is null)
-        return Results.Json(new { error = "This account has no recovery question yet. Sign in, open Settings and set one first." }, statusCode: 409);
+        return Results.Json(new { error = "This account has no recovery question set up, so it cannot be reset this way." }, statusCode: 409);
     if (!Passwords.Verify(answer, stored))
     {
         resetAttempts.Fail(username);
@@ -216,40 +225,6 @@ app.MapPost("/api/forgot/reset", async (ForgotResetBody b) =>
     return Results.Ok(new { ok = true });
 });
 
-app.MapGet("/api/security", async (HttpContext ctx) =>
-{
-    if (!db.Ready) return DbDown();
-    var uid = CurrentUid(ctx);
-    if (uid is null) return NotSignedIn();
-    await using var conn = await db.OpenAsync();
-    await using var cmd = conn.CreateCommand();
-    cmd.CommandText = "SELECT recovery_question FROM users WHERE user_id = @u";
-    cmd.Parameters.AddWithValue("@u", uid.Value);
-    var question = await cmd.ExecuteScalarAsync() as string;
-    return Results.Ok(new { question = question ?? "" });
-});
-
-app.MapPut("/api/security", async (HttpContext ctx, SecurityBody b) =>
-{
-    if (!db.Ready) return DbDown();
-    var uid = CurrentUid(ctx);
-    if (uid is null) return NotSignedIn();
-    var question = (b.Question ?? "").Trim();
-    var answer = NormalizeAnswer(b.Answer ?? "");
-    if (question.Length < 5 || question.Length > 120)
-        return Results.Json(new { error = "Recovery question must be 5-120 characters." }, statusCode: 400);
-    if (answer.Length < 2 || answer.Length > 100)
-        return Results.Json(new { error = "Recovery answer must be 2-100 characters." }, statusCode: 400);
-
-    await using var conn = await db.OpenAsync();
-    await using var cmd = conn.CreateCommand();
-    cmd.CommandText = "UPDATE users SET recovery_question = @q, recovery_answer_hash = @a WHERE user_id = @u";
-    cmd.Parameters.AddWithValue("@q", question);
-    cmd.Parameters.AddWithValue("@a", Passwords.Hash(answer));
-    cmd.Parameters.AddWithValue("@u", uid.Value);
-    await cmd.ExecuteNonQueryAsync();
-    return Results.Ok(new { ok = true });
-});
 
 /* ---------- Bootstrap ---------- */
 
@@ -1431,7 +1406,7 @@ static async Task<UserDto?> LoadUserAsync(MySqlConnection conn, long uid)
 {
     await using var cmd = conn.CreateCommand();
     cmd.CommandText = """
-        SELECT username, full_name, role, farm_name, location, phone, notifications_seen_at, recovery_question
+        SELECT username, full_name, role, farm_name, location, phone, notifications_seen_at
         FROM users WHERE user_id = @u
         """;
     cmd.Parameters.AddWithValue("@u", uid);
@@ -1445,7 +1420,6 @@ static async Task<UserDto?> LoadUserAsync(MySqlConnection conn, long uid)
         Farm = r.IsDBNull(r.GetOrdinal("farm_name")) ? "" : r.GetString(r.GetOrdinal("farm_name")),
         Loc = r.GetString(r.GetOrdinal("location")),
         Phone = r.IsDBNull(r.GetOrdinal("phone")) ? "" : r.GetString(r.GetOrdinal("phone")),
-        RecoveryQuestion = r.IsDBNull(r.GetOrdinal("recovery_question")) ? "" : r.GetString(r.GetOrdinal("recovery_question")),
         Seen = r.IsDBNull(r.GetOrdinal("notifications_seen_at"))
             ? null
             : r.GetDateTime(r.GetOrdinal("notifications_seen_at")).ToString("yyyy-MM-ddTHH:mm:ss"),
@@ -1765,7 +1739,7 @@ public sealed class AttemptLimiter
 }
 
 public sealed record LoginBody(string? Username, string? Password);
-public sealed record SignupBody(string? Name, string? Username, string? Password, string? Role);
+public sealed record SignupBody(string? Name, string? Username, string? Password, string? Question, string? Answer, string? Role);
 public sealed record ItemBody(string? Name, string? Category, decimal Qty, string? Unit, string? Date,
     string? Supplier, decimal Cost, bool LogExp, string? Notes, bool Undo = false);
 public sealed record QtyBody(decimal Qty);
@@ -1779,8 +1753,6 @@ public sealed record ProfileBody(string? Name, string? Farm, string? Phone, stri
 public sealed record ChangePasswordBody(string? CurrentPassword, string? NewPassword);
 public sealed record ForgotQuestionBody(string? Username);
 public sealed record ForgotResetBody(string? Username, string? Answer, string? NewPassword);
-public sealed record SecurityBody(string? Question, string? Answer);
-
 public sealed class UserDto
 {
     public string Username { get; set; } = "";
@@ -1789,7 +1761,6 @@ public sealed class UserDto
     public string Farm { get; set; } = "";
     public string Loc { get; set; } = "";
     public string Phone { get; set; } = "";
-    public string RecoveryQuestion { get; set; } = "";
     public string? Seen { get; set; }
 }
 
