@@ -1086,6 +1086,43 @@ app.MapPut("/api/profile", async (HttpContext ctx, ProfileBody b) =>
     return Results.Ok(new { ok = true });
 });
 
+app.MapPut("/api/password", async (HttpContext ctx, ChangePasswordBody b) =>
+{
+    if (!db.Ready) return DbDown();
+    var uid = CurrentUid(ctx);
+    if (uid is null) return NotSignedIn();
+
+    var current = b.CurrentPassword ?? "";
+    var next = b.NewPassword ?? "";
+    if (current.Length == 0)
+        return Results.Json(new { error = "Enter your current password." }, statusCode: 400);
+    if (next.Length < 6)
+        return Results.Json(new { error = "New password must be at least 6 characters." }, statusCode: 400);
+    if (next == current)
+        return Results.Json(new { error = "Choose a new password that is different from the current one." }, statusCode: 400);
+
+    await using var conn = await db.OpenAsync();
+    string? stored;
+    await using (var sel = conn.CreateCommand())
+    {
+        sel.CommandText = "SELECT password_hash FROM users WHERE user_id = @u";
+        sel.Parameters.AddWithValue("@u", uid.Value);
+        stored = await sel.ExecuteScalarAsync() as string;
+    }
+    if (stored is null || !Passwords.Verify(current, stored))
+        return Results.Json(new { error = "Your current password is incorrect." }, statusCode: 400);
+
+    await using (var upd = conn.CreateCommand())
+    {
+        upd.CommandText = "UPDATE users SET password_hash = @p WHERE user_id = @u";
+        upd.Parameters.AddWithValue("@p", Passwords.Hash(next));
+        upd.Parameters.AddWithValue("@u", uid.Value);
+        await upd.ExecuteNonQueryAsync();
+    }
+
+    return Results.Ok(new { ok = true });
+});
+
 app.MapPost("/api/reset", async (HttpContext ctx) =>
 {
     if (!db.Ready) return DbDown();
@@ -1739,6 +1776,7 @@ public sealed record ListingBody(string? Name, string? Category, decimal Qty, st
 public sealed record OrderBody(decimal Qty, string? BuyerName = null, string? DeliveryAddress = null);
 public sealed record PurchaseBody(string? Status, string? DeliveryDate, string? DeliveryAddress);
 public sealed record ProfileBody(string? Name, string? Farm, string? Phone, string? Loc);
+public sealed record ChangePasswordBody(string? CurrentPassword, string? NewPassword);
 public sealed record ForgotQuestionBody(string? Username);
 public sealed record ForgotResetBody(string? Username, string? Answer, string? NewPassword);
 public sealed record SecurityBody(string? Question, string? Answer);

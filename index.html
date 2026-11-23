@@ -1212,6 +1212,16 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
           <div class="form-actions full"><button class="btn btn-primary" type="submit">Save changes</button></div>
         </form>
         <hr>
+        <form id="password-form" class="form-grid">
+          <h4 class="full">Change password</h4>
+          <p class="full modal-note">Enter your current password, then choose a new one. Use at least 6 characters.</p>
+          <label class="full">Current password<input type="password" id="cp-current" autocomplete="current-password" required></label>
+          <label>New password<input type="password" id="cp-new" autocomplete="new-password" minlength="6" required></label>
+          <label>Confirm new password<input type="password" id="cp-confirm" autocomplete="new-password" minlength="6" required></label>
+          <p class="form-error full" id="cp-error" hidden></p>
+          <div class="form-actions full"><button class="btn btn-primary" type="submit">Update password</button></div>
+        </form>
+        <hr>
         <form id="security-form" class="form-grid">
           <h4 class="full">Password recovery</h4>
           <p class="full modal-note">If you forget your password, this question will be asked before you can set a new one. Answers are not case-sensitive.</p>
@@ -1664,6 +1674,8 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     $('#set-role').textContent = session.role === 'buyer' ? 'Buyer' : 'Farmer';
     $('#sec-question').value = session.recoveryQuestion || '';
     $('#sec-answer').value = '';
+    $('#password-form').reset();
+    $('#cp-error').hidden = true;
     applyRole();
     populateExpenseFilters();
     const home = session.role === 'buyer' ? 'marketplace' : 'dashboard';
@@ -1703,6 +1715,8 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
     $('#notif').hidden = true;
     $('#login-form').reset();
     $('#signup-form').reset();
+    $('#password-form').reset();
+    $('#cp-error').hidden = true;
     history.replaceState(null, '', '#');
     switchAuth('login');
   }
@@ -2853,6 +2867,37 @@ select:focus, .form-grid input:focus, .form-grid textarea:focus { box-shadow: va
       toast('Recovery question saved.');
     } catch (ex) {
       toast(ex.message);
+    }
+  });
+  $('#password-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = $('#cp-error');
+    err.hidden = true;
+    const next = $('#cp-new').value;
+    if (next.length < 6) {
+      err.textContent = 'New password must be at least 6 characters.';
+      err.hidden = false;
+      return;
+    }
+    if (next !== $('#cp-confirm').value) {
+      err.textContent = 'The two new passwords do not match.';
+      err.hidden = false;
+      return;
+    }
+    const btn = e.target.querySelector('button[type="submit"]');
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Updating...';
+    try {
+      await api('/password', 'PUT', { currentPassword: $('#cp-current').value, newPassword: next });
+      e.target.reset();
+      toast('Password updated.');
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.hidden = false;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
     }
   });
   $('#reset-data').addEventListener('click', async () => {
